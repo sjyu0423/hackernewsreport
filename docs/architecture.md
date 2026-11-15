@@ -1,4 +1,4 @@
-# QwenNews Architecture (M0–M3)
+# QwenNews Architecture (M0–M4)
 
 ## Goals
 
@@ -27,12 +27,18 @@ M2 adds durable story memory and delta reporting:
 M3 adds Mac mini automation:
 
 14. Orchestrate `collect → sync → analyze → report` via `run-hourly` / `run-daily`.
-15. Mode-specific story report state + crash-safe watermarks (schema v4).
+15. Mode-specific story report state + crash-safe watermarks (schema v5).
 16. Single-instance locking so hourly and daily never run Qwen concurrently.
-17. Optional LaunchAgent template (generate/validate only; install is opt-in).
+17. LaunchAgent templates for hourly + daily (install is opt-in).
 18. Optional macOS notifications that never invalidate persisted reports.
 
-Dashboard, cloud inference, fine-tuning, and embedding-based clustering remain deferred.
+M4 adds a local dashboard:
+
+19. FastAPI read-only API bound to `127.0.0.1` over SQLite `mode=ro`.
+20. Next.js editorial UI for Today / Hourly / Stories / History / Status.
+21. No new inference; no LaunchAgent changes from the dashboard path.
+
+Cloud inference, fine-tuning, and embedding-based clustering remain deferred.
 
 ## Package layout
 
@@ -45,7 +51,7 @@ Dashboard, cloud inference, fine-tuning, and embedding-based clustering remain d
 | `qwennews.robots` | Cached robots.txt decisions |
 | `qwennews.extract` | HTML → article text extraction |
 | `qwennews.sources.*` | Source adapters (HN Firebase API, RSS/Atom) |
-| `qwennews.storage` | SQLite schema + idempotent upserts (schema v4) |
+| `qwennews.storage` | SQLite schema + idempotent upserts (schema v5) |
 | `qwennews.collect` | End-to-end collection orchestration |
 | `qwennews.ollama_client` | Local Ollama `/api/chat` adapter + metrics |
 | `qwennews.analysis_schema` | Pydantic analysis models + JSON schema |
@@ -58,7 +64,10 @@ Dashboard, cloud inference, fine-tuning, and embedding-based clustering remain d
 | `qwennews.locking` | Advisory single-instance file lock |
 | `qwennews.notify` | Optional macOS `osascript` notifications |
 | `qwennews.launchd` | LaunchAgent plist render + validate |
-| `qwennews.cli` | CLI including `run-hourly`, `run-daily`, `status` |
+| `qwennews.cli` | CLI including `run-hourly`, `run-daily`, `status`, `dashboard-api` |
+| `qwennews.readonly_store` | SQLite read-only access for the dashboard |
+| `qwennews.dashboard_api` | FastAPI app (localhost, GET-only) |
+| `dashboard/` | Next.js TypeScript UI |
 
 ## Data model
 

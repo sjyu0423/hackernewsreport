@@ -29,3 +29,9 @@ data/
 .idea/
 .vscode/
 packaging/launchd/generated/
+
+# Dashboard (Next.js)
+dashboard/node_modules/
+dashboard/.next/
+dashboard/out/
+dashboard/coverage/

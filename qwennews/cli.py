@@ -184,6 +184,14 @@ def _build_parser() -> argparse.ArgumentParser:
     daily_parser.add_argument("--as-of", default=None)
 
     sub.add_parser("status", help="Show orchestration status, locks, and watermarks")
+
+    dash_parser = sub.add_parser(
+        "dashboard-api",
+        help="Run the local read-only dashboard API (127.0.0.1 only)",
+    )
+    dash_parser.add_argument("--host", default="127.0.0.1")
+    dash_parser.add_argument("--port", type=int, default=8765)
+    dash_parser.add_argument("--reload", action="store_true")
     return parser
 
 
@@ -504,6 +512,22 @@ def main(argv: Sequence[str] | None = None) -> int:
         return cmd_run_mode(store, args, mode="daily")
     if args.command == "status":
         return cmd_status(store)
+    if args.command == "dashboard-api":
+        if args.host not in {"127.0.0.1", "localhost", "::1"}:
+            print(
+                "Refusing non-loopback bind. Use --host 127.0.0.1",
+                file=sys.stderr,
+            )
+            return 2
+        import uvicorn
+
+        uvicorn.run(
+            "qwennews.dashboard_api.app:app",
+            host=args.host,
+            port=args.port,
+            reload=bool(args.reload),
+        )
+        return 0
 
     parser.error(f"Unknown command: {args.command}")
     return 2

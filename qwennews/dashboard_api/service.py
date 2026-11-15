@@ -134,9 +134,37 @@ def build_today(store: ReadOnlyStore, *, story_limit: int = 15) -> dict[str, Any
     }
 
 
+def _last_successful_run(
+    runs: list[dict[str, Any]], *, mode: str
+) -> dict[str, Any] | None:
+    for run in runs:
+        if run.get("mode") != mode:
+            continue
+        if run.get("status") == "completed" and run.get("outcome") in {
+            "success",
+            "empty_success",
+        }:
+            return {
+                "id": run.get("id"),
+                "started_at": run.get("started_at"),
+                "finished_at": run.get("finished_at"),
+                "outcome": run.get("outcome"),
+                "trigger_source": run.get("trigger_source") or "unrecorded",
+                "empty_cycle": bool(run.get("empty_cycle")),
+            }
+    return None
+
+
 def build_status(store: ReadOnlyStore, *, probe_ollama: bool = True) -> dict[str, Any]:
+    from qwennews.production import (
+        db_identity,
+        inspect_scheduler,
+        project_volume_mounted,
+    )
+
     hourly = store.latest_report(mode="hourly")
     daily = store.latest_report(mode="daily")
+    recent = store.recent_orchestration_runs(limit=20)
     ollama: dict[str, Any] | None = None
     ollama_live = False
     if probe_ollama:
@@ -149,16 +177,32 @@ def build_status(store: ReadOnlyStore, *, probe_ollama: bool = True) -> dict[str
         except Exception as exc:  # noqa: BLE001
             ollama = {"ok": False, "error": str(exc), "reachable": False}
             ollama_live = True
+
+    scheduler = inspect_scheduler()
+    db_stats = store.stats()
+    identity = db_identity(store.db_path)
+    db_stats.update(identity)
+
     return {
-        "db": store.stats(),
+        "db": db_stats,
         "watermarks": {
             "hourly": store.get_watermark("hourly"),
             "daily": store.get_watermark("daily"),
         },
         "backlog": store.backlog_counts(),
-        "recent_runs": store.recent_orchestration_runs(limit=8),
+        "recent_runs": recent[:8],
         "last_hourly_report": report_summary(hourly) if hourly else None,
         "last_daily_report": report_summary(daily) if daily else None,
+        "last_successful_hourly_run": _last_successful_run(recent, mode="hourly"),
+        "last_successful_daily_run": _last_successful_run(recent, mode="daily"),
+        "scheduler": scheduler,
+        "volume": project_volume_mounted(),
         "ollama": ollama,
         "ollama_live": ollama_live,
+        "note": (
+            "Watermarks, backlog, and recent runs are last-known values from SQLite. "
+            "Scheduler verification is independent of 'loaded' LaunchAgent state. "
+            "trigger_source=launchd means XPC_SERVICE_NAME matched a QwenNews agent; "
+            "cli/unrecorded means manual or pre-M4.2. Ollama fields are a bounded live probe."
+        ),
     }

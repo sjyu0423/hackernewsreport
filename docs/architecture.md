@@ -1,4 +1,4 @@
-# QwenNews Architecture (M0–M4.1)
+# QwenNews Architecture (M0–M4.2)
 
 ## Goals
 
@@ -44,6 +44,12 @@ M4.1 polishes the product surface:
 23. Safe Markdown rendering (sanitize + http(s)-only links); clearer generation vs publication times.
 24. Explicit operational verification of LaunchAgent schedules (do not claim timer success without `runs` / logs).
 
+M4.2 production reliability:
+
+25. Canonical production DB `data/live_m0.db` (override with `QWENNEWS_DB_PATH`); fail visibly if missing.
+26. Orchestration `trigger_source` provenance (`launchd` vs `cli`).
+27. Status API surfaces scheduler verification, DB identity, last successful runs, backlog, volume probe.
+
 Cloud inference, fine-tuning, and embedding-based clustering remain deferred.
 
 ## Package layout
@@ -74,6 +80,7 @@ Cloud inference, fine-tuning, and embedding-based clustering remain deferred.
 | `qwennews.readonly_store` | SQLite read-only access for the dashboard |
 | `qwennews.dashboard_api` | FastAPI app (localhost, GET-only) |
 | `qwennews.dashboard_launcher` | Parent process: start/stop API + Next on localhost |
+| `qwennews.production` | Production DB path, scheduler inspect, port diagnose |
 | `dashboard/` | Next.js TypeScript UI |
 | `scripts/run_dashboard.py` | Convenience entry for the launcher |
 
@@ -87,10 +94,10 @@ Cloud inference, fine-tuning, and embedding-based clustering remain deferred.
 - **reports**: persisted Markdown briefings (`mode`, `as_of`, `window_start`, `status`).
 - **report_watermarks**: per-mode publication watermarks.
 - **story_report_state**: per-mode `last_reported_at` (hourly vs daily independent).
-- **orchestration_runs**: per-cycle timing, counts, errors, outcomes.
+- **orchestration_runs**: per-cycle timing, counts, errors, outcomes, `trigger_source` (M4.2).
 
-Timestamps are stored as UTC ISO-8601 strings. Existing databases migrate in place (schema version 5 adds
-`story_processing_state` and `article_processing_state` for backlog-safe hourly drains).
+Timestamps are stored as UTC ISO-8601 strings. Existing databases migrate in place (schema version 6 adds
+`orchestration_runs.trigger_source`; v5 added backlog processing state tables).
 
 ### Ranking (M2)
 

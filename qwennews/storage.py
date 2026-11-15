@@ -178,7 +178,8 @@ CREATE TABLE IF NOT EXISTS orchestration_runs (
     error TEXT,
     report_path TEXT,
     watermark_advanced INTEGER NOT NULL DEFAULT 0,
-    empty_cycle INTEGER NOT NULL DEFAULT 0
+    empty_cycle INTEGER NOT NULL DEFAULT 0,
+    trigger_source TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_orchestration_runs_mode
@@ -242,10 +243,11 @@ class ArticleStore:
         with self._connect() as conn:
             conn.executescript(SCHEMA_SQL)
             self._migrate_reports_table(conn)
+            self._migrate_orchestration_runs_table(conn)
             conn.execute(
                 "INSERT INTO schema_meta(key, value) VALUES(?, ?) "
                 "ON CONFLICT(key) DO UPDATE SET value=excluded.value",
-                ("schema_version", "5"),
+                ("schema_version", "6"),
             )
             conn.commit()
         logger.info("Initialized database at %s", self.db_path)
@@ -265,6 +267,20 @@ class ArticleStore:
         for name, ddl in alterations.items():
             if name not in cols:
                 conn.execute(ddl)
+
+    def _migrate_orchestration_runs_table(self, conn: sqlite3.Connection) -> None:
+        """M4.2: add trigger_source without destroying existing run history."""
+        try:
+            cols = {
+                row["name"]
+                for row in conn.execute("PRAGMA table_info(orchestration_runs)").fetchall()
+            }
+        except sqlite3.OperationalError:
+            return
+        if cols and "trigger_source" not in cols:
+            conn.execute(
+                "ALTER TABLE orchestration_runs ADD COLUMN trigger_source TEXT"
+            )
 
     @contextmanager
     def _connect(self) -> Iterator[sqlite3.Connection]:
@@ -933,19 +949,26 @@ class ArticleStore:
         *,
         mode: str,
         cutoff_at: str | None = None,
+        trigger_source: str | None = None,
     ) -> int:
         with self._connect() as conn:
             cur = conn.execute(
                 """
                 INSERT INTO orchestration_runs (
-                    mode, status, started_at, cutoff_at, outcome
-                ) VALUES (?, ?, ?, ?, ?)
+                    mode, status, started_at, cutoff_at, outcome, trigger_source
+                ) VALUES (?, ?, ?, ?, ?, ?)
                 """,
-                (mode, "running", _dt_to_iso(utc_now()), cutoff_at, None),
+                (
+                    mode,
+                    "running",
+                    _dt_to_iso(utc_now()),
+                    cutoff_at,
+                    None,
+                    trigger_source,
+                ),
             )
             conn.commit()
             return int(cur.lastrowid)
-
     def finish_orchestration_run(
         self,
         run_id: int,

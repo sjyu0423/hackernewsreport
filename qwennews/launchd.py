@@ -69,6 +69,13 @@ def render_hourly_plist(
     venv_root = python_exe.parent.parent if python_exe.parent.name == "bin" else None
     if venv_root and venv_root.name == ".venv":
         merged.setdefault("VIRTUAL_ENV", str(venv_root.resolve()))
+    # Pin production DB explicitly in newly generated plists (does not modify installed agents).
+    from qwennews.production import PRODUCTION_DB_RELATIVE
+
+    merged.setdefault(
+        "QWENNEWS_DB_PATH",
+        str((working_directory / PRODUCTION_DB_RELATIVE).resolve()),
+    )
 
     return {
         "Label": label,
@@ -122,6 +129,12 @@ def render_daily_plist(
     venv_root = python_exe.parent.parent if python_exe.parent.name == "bin" else None
     if venv_root and venv_root.name == ".venv":
         merged.setdefault("VIRTUAL_ENV", str(venv_root.resolve()))
+    from qwennews.production import PRODUCTION_DB_RELATIVE
+
+    merged.setdefault(
+        "QWENNEWS_DB_PATH",
+        str((working_directory / PRODUCTION_DB_RELATIVE).resolve()),
+    )
 
     return {
         "Label": label,

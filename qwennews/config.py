@@ -73,7 +73,9 @@ def _env_int(name: str, default: int) -> int:
 class Config:
     """Runtime configuration for ingestion and local analysis."""
 
-    db_path: Path = field(default_factory=lambda: Path("data/qwennews.db"))
+    # Canonical production DB for this checkout (M4.2). Override with QWENNEWS_DB_PATH.
+    db_path: Path = field(default_factory=lambda: Path("data/live_m0.db"))
+
     user_agent: str = "QwenNews/0.1 (+https://localhost; local news aggregator; research use)"
     connect_timeout: float = 5.0
     read_timeout: float = 20.0
@@ -130,8 +132,12 @@ def load_config(env_file: str | Path | None = ".env") -> Config:
     if unknown:
         raise ValueError(f"Unknown source(s) in QWENNEWS_ENABLED_SOURCES: {unknown}")
 
+    from qwennews.production import resolve_db_path
+
     return Config(
-        db_path=Path(os.getenv("QWENNEWS_DB_PATH", "data/qwennews.db")),
+        db_path=resolve_db_path(os.getenv("QWENNEWS_DB_PATH")),
+
+
         user_agent=os.getenv(
             "QWENNEWS_USER_AGENT",
             "QwenNews/0.1 (+https://localhost; local news aggregator; research use)",

@@ -265,6 +265,8 @@ class ReadOnlyStore:
                 "story_count": story_count,
                 "report_count": report_count,
                 "db_path_name": self.db_path.name,
+                "db_path": str(self.db_path),
+                "db_size_bytes": self.db_path.stat().st_size if self.db_path.is_file() else 0,
             }
 
     def categories(self) -> list[str]:

@@ -35,7 +35,7 @@ def test_port_in_use_detects_listener() -> None:
     srv.listen(1)
     try:
         assert port_in_use("127.0.0.1", port) is True
-        with pytest.raises(LauncherError, match="already in use"):
+        with pytest.raises(LauncherError, match="in use|port conflict"):
             require_free_port("127.0.0.1", port, "API")
     finally:
         srv.close()
@@ -75,7 +75,7 @@ def test_start_api_refuses_occupied_port(tmp_path: Path) -> None:
     srv.listen(1)
     state = LauncherState()
     try:
-        with pytest.raises(LauncherError, match="already in use"):
+        with pytest.raises(LauncherError, match="in use|port conflict"):
             start_api(
                 state,
                 root=tmp_path,

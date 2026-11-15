@@ -8,8 +8,20 @@ Local AI news reporting system.
 - **M3:** automated hourly/daily orchestration, mode-specific report state, LaunchAgent + notifications
 - **M4:** local read-only news dashboard (FastAPI + Next.js)
 - **M4.1:** one-command launcher, safe Markdown reading UX, scheduler verification notes
+- **M4.2:** production DB path clarity, scheduler evidence, status provenance
 
 No cloud inference, model fine-tuning, or mobile app.
+
+## Production database
+
+Canonical production SQLite path for this checkout:
+
+```bash
+QWENNEWS_DB_PATH=data/live_m0.db   # default as of M4.2
+```
+
+`run-hourly`, `run-daily`, and `dashboard` refuse to start if that file is missing (they will not create an empty alternate DB). See [docs/milestones/m4_2.md](docs/milestones/m4_2.md).
+
 
 ## Requirements
 

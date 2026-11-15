@@ -57,6 +57,10 @@ export type StatusResponse = {
   recent_runs: Array<Record<string, unknown>>;
   last_hourly_report: ReportSummary | null;
   last_daily_report: ReportSummary | null;
+  last_successful_hourly_run?: Record<string, unknown> | null;
+  last_successful_daily_run?: Record<string, unknown> | null;
+  scheduler?: Record<string, unknown> | null;
+  volume?: Record<string, unknown> | null;
   ollama: Record<string, unknown> | null;
   ollama_live: boolean;
   note: string;

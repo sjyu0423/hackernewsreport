@@ -216,6 +216,10 @@ def run_orchestration(
     if mode not in {"hourly", "daily"}:
         raise ValueError(f"Unsupported orchestration mode: {mode}")
 
+    from qwennews.production import detect_trigger_source
+
+    trigger_source = detect_trigger_source()
+
     lock_path = Path(cfg.db_path).parent / "locks" / "orchestrate.lock"
     lock = RunLock(lock_path)
     if acquire_lock:
@@ -231,7 +235,9 @@ def run_orchestration(
             )
 
     run_id = article_store.start_orchestration_run(
-        mode=mode, cutoff_at=as_of_dt.isoformat().replace("+00:00", "Z")
+        mode=mode,
+        cutoff_at=as_of_dt.isoformat().replace("+00:00", "Z"),
+        trigger_source=trigger_source,
     )
     stages: list[StageResult] = []
     counts: dict[str, Any] = {

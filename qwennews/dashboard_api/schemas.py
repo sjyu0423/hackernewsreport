@@ -75,10 +75,15 @@ class StatusResponse(BaseModel):
     recent_runs: list[dict[str, Any]]
     last_hourly_report: ReportSummary | None = None
     last_daily_report: ReportSummary | None = None
+    last_successful_hourly_run: dict[str, Any] | None = None
+    last_successful_daily_run: dict[str, Any] | None = None
+    scheduler: dict[str, Any] | None = None
+    volume: dict[str, Any] | None = None
     ollama: dict[str, Any] | None = None
     ollama_live: bool = False
     note: str = (
         "Watermarks, backlog, and recent runs are last-known values from SQLite. "
+        "Scheduler verification does not infer success from loaded state alone. "
         "Ollama fields are from a bounded live probe when enabled."
     )
 

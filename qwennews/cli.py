@@ -438,8 +438,14 @@ def _parse_as_of(raw: str | None):
 
 def cmd_run_mode(store: ArticleStore, args: argparse.Namespace, *, mode: str) -> int:
     from qwennews.orchestrate import run_orchestration
+    from qwennews.production import ProductionConfigError, require_existing_db
 
     config = load_config()
+    try:
+        require_existing_db(config.db_path, purpose=f"run-{mode}")
+    except ProductionConfigError as exc:
+        print(str(exc), file=sys.stderr)
+        return 2
     store.init_db()
     try:
         as_of = _parse_as_of(getattr(args, "as_of", None))
@@ -448,6 +454,7 @@ def cmd_run_mode(store: ArticleStore, args: argparse.Namespace, *, mode: str) ->
         return 2
 
     print(f"Starting {mode} orchestration…")
+    print(f"Database: {config.db_path}")
     result = run_orchestration(
         mode,
         config=config,

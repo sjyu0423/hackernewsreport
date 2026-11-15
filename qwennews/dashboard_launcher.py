@@ -56,12 +56,25 @@ def port_in_use(host: str, port: int) -> bool:
 
 
 def require_free_port(host: str, port: int, label: str) -> None:
-    if port_in_use(host, port):
+    if not port_in_use(host, port):
+        return
+    try:
+        from qwennews.production import diagnose_port
+
+        occ = diagnose_port(host, port)
+        raise LauncherError(
+            f"{label} port conflict: {occ.detail}\n"
+            "Examples: Ctrl-C the other QwenNews terminal, or "
+            f"`python -m qwennews dashboard --api-port 8766 --web-port 3001`."
+        )
+    except LauncherError:
+        raise
+    except Exception:  # noqa: BLE001
         raise LauncherError(
             f"{label} port {host}:{port} is already in use. "
             "Stop the other process yourself, or choose a different --port. "
             "This launcher will not kill unrelated processes."
-        )
+        ) from None
 
 
 def _python_exe(root: Path) -> Path:
@@ -299,6 +312,17 @@ def run_launcher(argv: list[str] | None = None) -> int:
     log_dir = root / "data" / "logs"
     api_base = f"http://{args.api_host}:{args.api_port}"
     state = LauncherState()
+
+    try:
+        from qwennews.config import load_config
+        from qwennews.production import ProductionConfigError, require_existing_db
+
+        cfg = load_config()
+        require_existing_db(cfg.db_path, purpose="dashboard")
+        print(f"[launcher] database: {cfg.db_path}")
+    except ProductionConfigError as exc:
+        print(f"[launcher] ERROR: {exc}", file=sys.stderr)
+        return 1
 
     def _handle_signal(signum: int, _frame: object) -> None:
         print(f"\n[launcher] received signal {signum}")

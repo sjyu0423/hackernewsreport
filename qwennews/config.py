@@ -92,6 +92,8 @@ class Config:
     ollama_think: bool = False
     ollama_temperature: float = 0.1
     report_dir: Path = field(default_factory=lambda: Path("data/reports"))
+    # M2 ranking: optional "category:score,category:score" overrides
+    category_priority_overrides: dict[str, float] = field(default_factory=dict)
 
     @property
     def timeout(self) -> float:
@@ -142,4 +144,30 @@ def load_config(env_file: str | Path | None = ".env") -> Config:
         ollama_think=_env_bool("QWENNEWS_OLLAMA_THINK", False),
         ollama_temperature=_env_float("QWENNEWS_OLLAMA_TEMPERATURE", 0.1),
         report_dir=Path(os.getenv("QWENNEWS_REPORT_DIR", "data/reports")),
+        category_priority_overrides=_parse_category_priorities(
+            os.getenv("QWENNEWS_CATEGORY_PRIORITIES", "")
+        ),
     )
+
+
+def _parse_category_priorities(raw: str) -> dict[str, float]:
+    """Parse `weather:1.0,models:5.0` style overrides."""
+    out: dict[str, float] = {}
+    for part in raw.split(","):
+        part = part.strip()
+        if not part or ":" not in part:
+            continue
+        name, score = part.split(":", 1)
+        try:
+            out[name.strip().lower()] = float(score.strip())
+        except ValueError:
+            continue
+    return out
+
+
+def default_ranking_config_from_env():
+    """Build RankingConfig using env overrides when present."""
+    from qwennews.ranking import default_ranking_config
+
+    cfg = load_config()
+    return default_ranking_config(cfg.category_priority_overrides)

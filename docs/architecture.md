@@ -17,7 +17,14 @@ M1 adds local analysis:
 8. Validate structured JSON with Pydantic and cache by article/content/model/config.
 9. Render an on-demand Markdown briefing with deterministic ranking templates.
 
-Scheduling, notifications, semantic dedupe, and a dashboard remain deferred.
+M2 adds durable story memory and delta reporting:
+
+10. Link articles into developing stories with conservative near-duplicate detection.
+11. Classify NEW_STORY / NEW_SOURCE_SAME_STORY / MEANINGFUL_UPDATE / UNCHANGED.
+12. Rank with category priorities + capped HN signal + diversity limits.
+13. Emit hourly deltas and daily digests with independent watermarks.
+
+Background scheduling, notifications, embedding-based clustering, and a dashboard remain deferred.
 
 ## Package layout
 
@@ -35,8 +42,11 @@ Scheduling, notifications, semantic dedupe, and a dashboard remain deferred.
 | `qwennews.ollama_client` | Local Ollama `/api/chat` adapter + metrics |
 | `qwennews.analysis_schema` | Pydantic analysis models + JSON schema |
 | `qwennews.analyze` | Prompting, validation, cache-aware analysis |
-| `qwennews.report` | Deterministic Markdown briefing + ranking |
-| `qwennews.cli` | `init-db`, `collect`, `recent`, `stats`, `analyze`, `report` |
+| `qwennews.ranking` | M2 deterministic ranking + diversity |
+| `qwennews.similarity` | Headline/entity/content similarity helpers |
+| `qwennews.story_memory` | Story linking + update classification |
+| `qwennews.report` | Ondemand / hourly / daily Markdown reports |
+| `qwennews.cli` | `init-db`, `collect`, `recent`, `stats`, `analyze`, `report`, `sync-stories` |
 
 ## Data model
 

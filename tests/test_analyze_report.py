@@ -241,7 +241,7 @@ def test_ranking_stability_and_citation_urls(store: ArticleStore) -> None:
 
 
 def test_report_empty_and_partial(store: ArticleStore, tmp_path) -> None:
-    md, path = generate_report(store, hours=24, limit=5, output_dir=tmp_path)
+    md, path, _meta = generate_report(store, hours=24, limit=5, output_dir=tmp_path)
     assert "No stories available" in md
     assert path is not None and path.exists()
 
@@ -263,7 +263,7 @@ def test_report_empty_and_partial(store: ArticleStore, tmp_path) -> None:
         config_version=ANALYSIS_CONFIG_VERSION,
         analysis=analysis,
     )
-    md2, _ = generate_report(store, hours=24, limit=5, output_dir=tmp_path)
+    md2, _path2, _meta2 = generate_report(store, hours=24, limit=5, output_dir=tmp_path)
     assert "Only One" in md2
     assert article["canonical_url"] in md2
 

@@ -4,8 +4,9 @@ Local AI news reporting system.
 
 - **M0:** news ingestion (HN + AI lab/blog feeds → SQLite)
 - **M1:** local Qwen3 4B analysis via Ollama + on-demand Markdown briefing
+- **M2:** story memory, conservative near-dupe linking, improved ranking, hourly/daily delta reports
 
-Hourly automation, notifications, semantic dedupe, and a dashboard remain out of scope.
+Background scheduling, notifications, and a dashboard remain out of scope.
 
 ## Requirements
 
@@ -34,7 +35,12 @@ python -m qwennews stats
 
 # M1 — local analysis + on-demand briefing
 python -m qwennews analyze --limit 10
-python -m qwennews report --hours 24 --limit 10
+python -m qwennews report --mode ondemand --hours 24 --limit 10
+
+# M2 — story memory + delta reports
+python -m qwennews sync-stories
+python -m qwennews report --mode hourly --limit 10
+python -m qwennews report --mode daily --limit 15
 ```
 
 Configuration is via environment variables (see `.env.example`). No API keys are required for public feeds. Analysis uses only the configured local Ollama endpoint (no cloud fallback).

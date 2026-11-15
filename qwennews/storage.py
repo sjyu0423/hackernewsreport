@@ -105,8 +105,56 @@ CREATE TABLE IF NOT EXISTS reports (
     hours INTEGER NOT NULL,
     story_count INTEGER NOT NULL,
     path TEXT,
-    markdown TEXT NOT NULL
+    markdown TEXT NOT NULL,
+    mode TEXT,
+    as_of TEXT,
+    window_start TEXT,
+    status TEXT,
+    significant_only INTEGER DEFAULT 0
 );
+
+CREATE TABLE IF NOT EXISTS stories (
+    id TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    category TEXT,
+    first_seen_at TEXT NOT NULL,
+    last_seen_at TEXT NOT NULL,
+    last_reported_at TEXT,
+    significant_update_at TEXT,
+    primary_article_id TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS story_articles (
+    story_id TEXT NOT NULL,
+    article_id TEXT NOT NULL,
+    linked_at TEXT NOT NULL,
+    link_reason TEXT,
+    PRIMARY KEY (story_id, article_id),
+    FOREIGN KEY (story_id) REFERENCES stories(id) ON DELETE CASCADE,
+    FOREIGN KEY (article_id) REFERENCES articles(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS story_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    story_id TEXT,
+    article_id TEXT,
+    decision TEXT NOT NULL,
+    evidence_json TEXT,
+    created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS report_watermarks (
+    mode TEXT PRIMARY KEY,
+    watermark_at TEXT NOT NULL,
+    last_report_id INTEGER,
+    updated_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_stories_last_seen ON stories(last_seen_at);
+CREATE INDEX IF NOT EXISTS idx_story_articles_article ON story_articles(article_id);
+CREATE INDEX IF NOT EXISTS idx_story_events_story ON story_events(story_id, created_at);
 """
 
 
@@ -135,13 +183,30 @@ class ArticleStore:
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         with self._connect() as conn:
             conn.executescript(SCHEMA_SQL)
+            self._migrate_reports_table(conn)
             conn.execute(
                 "INSERT INTO schema_meta(key, value) VALUES(?, ?) "
                 "ON CONFLICT(key) DO UPDATE SET value=excluded.value",
-                ("schema_version", "2"),
+                ("schema_version", "3"),
             )
             conn.commit()
         logger.info("Initialized database at %s", self.db_path)
+
+    def _migrate_reports_table(self, conn: sqlite3.Connection) -> None:
+        """Add M2 columns to legacy reports tables without destroying rows."""
+        cols = {row["name"] for row in conn.execute("PRAGMA table_info(reports)").fetchall()}
+        alterations = {
+            "mode": "ALTER TABLE reports ADD COLUMN mode TEXT",
+            "as_of": "ALTER TABLE reports ADD COLUMN as_of TEXT",
+            "window_start": "ALTER TABLE reports ADD COLUMN window_start TEXT",
+            "status": "ALTER TABLE reports ADD COLUMN status TEXT",
+            "significant_only": (
+                "ALTER TABLE reports ADD COLUMN significant_only INTEGER DEFAULT 0"
+            ),
+        }
+        for name, ddl in alterations.items():
+            if name not in cols:
+                conn.execute(ddl)
 
     @contextmanager
     def _connect(self) -> Iterator[sqlite3.Connection]:
@@ -585,14 +650,32 @@ class ArticleStore:
         hours: int,
         story_count: int,
         markdown: str,
+        mode: str | None = None,
+        as_of: str | None = None,
+        window_start: str | None = None,
+        status: str = "completed",
+        significant_only: bool = False,
     ) -> int:
         with self._connect() as conn:
             cur = conn.execute(
                 """
-                INSERT INTO reports (created_at, hours, story_count, path, markdown)
-                VALUES (?, ?, ?, ?, ?)
+                INSERT INTO reports (
+                    created_at, hours, story_count, path, markdown,
+                    mode, as_of, window_start, status, significant_only
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
-                (_dt_to_iso(utc_now()), hours, story_count, path, markdown),
+                (
+                    _dt_to_iso(utc_now()),
+                    hours,
+                    story_count,
+                    path,
+                    markdown,
+                    mode,
+                    as_of,
+                    window_start,
+                    status,
+                    1 if significant_only else 0,
+                ),
             )
             conn.commit()
             return int(cur.lastrowid)
@@ -600,3 +683,220 @@ class ArticleStore:
     def analysis_count(self) -> int:
         with self._connect() as conn:
             return int(conn.execute("SELECT COUNT(*) AS c FROM article_analyses").fetchone()["c"])
+
+    # --- M2 story memory ---
+
+    def create_story(
+        self,
+        *,
+        story_id: str,
+        title: str,
+        primary_article_id: str | None,
+        category: str | None = None,
+        seen_at: str | None = None,
+    ) -> None:
+        now = seen_at or _dt_to_iso(utc_now())
+        with self._connect() as conn:
+            conn.execute(
+                """
+                INSERT OR IGNORE INTO stories (
+                    id, title, category, first_seen_at, last_seen_at,
+                    significant_update_at, primary_article_id, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    story_id,
+                    title,
+                    category,
+                    now,
+                    now,
+                    now,
+                    primary_article_id,
+                    now,
+                    now,
+                ),
+            )
+            conn.commit()
+
+    def add_article_to_story(
+        self,
+        story_id: str,
+        article_id: str,
+        *,
+        link_reason: str | None = None,
+        linked_at: str | None = None,
+    ) -> None:
+        now = linked_at or _dt_to_iso(utc_now())
+        with self._connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO story_articles (story_id, article_id, linked_at, link_reason)
+                VALUES (?, ?, ?, ?)
+                ON CONFLICT(story_id, article_id) DO UPDATE SET
+                    link_reason=COALESCE(excluded.link_reason, story_articles.link_reason)
+                """,
+                (story_id, article_id, now, link_reason),
+            )
+            conn.commit()
+
+    def get_story_id_for_article(self, article_id: str) -> str | None:
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT story_id FROM story_articles WHERE article_id = ? LIMIT 1",
+                (article_id,),
+            ).fetchone()
+            return str(row["story_id"]) if row else None
+
+    def list_stories(self, limit: int = 500) -> list[dict[str, Any]]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT * FROM stories
+                ORDER BY COALESCE(significant_update_at, last_seen_at) DESC
+                LIMIT ?
+                """,
+                (limit,),
+            ).fetchall()
+            return [dict(r) for r in rows]
+
+    def get_story(self, story_id: str) -> dict[str, Any] | None:
+        with self._connect() as conn:
+            row = conn.execute("SELECT * FROM stories WHERE id = ?", (story_id,)).fetchone()
+            return dict(row) if row else None
+
+    def list_story_articles(self, story_id: str) -> list[dict[str, Any]]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT a.*, GROUP_CONCAT(s.source, ',') AS sources,
+                       sa.link_reason, sa.linked_at
+                FROM story_articles sa
+                JOIN articles a ON a.id = sa.article_id
+                LEFT JOIN article_sources s ON s.article_id = a.id
+                WHERE sa.story_id = ?
+                GROUP BY a.id
+                ORDER BY a.discovered_at ASC
+                """,
+                (story_id,),
+            ).fetchall()
+            return [dict(r) for r in rows]
+
+    def touch_story(
+        self,
+        story_id: str,
+        *,
+        significant_update: bool,
+        title: str | None = None,
+        category: str | None = None,
+        seen_at: str | None = None,
+    ) -> None:
+        now = seen_at or _dt_to_iso(utc_now())
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT title, category FROM stories WHERE id = ?", (story_id,)
+            ).fetchone()
+            if row is None:
+                return
+            conn.execute(
+                """
+                UPDATE stories SET
+                    title = ?,
+                    category = ?,
+                    last_seen_at = ?,
+                    significant_update_at = CASE
+                        WHEN ? THEN ?
+                        ELSE significant_update_at
+                    END,
+                    updated_at = ?
+                WHERE id = ?
+                """,
+                (
+                    title or row["title"],
+                    category if category is not None else row["category"],
+                    now,
+                    1 if significant_update else 0,
+                    now,
+                    now,
+                    story_id,
+                ),
+            )
+            conn.commit()
+
+    def mark_story_reported(self, story_id: str, reported_at: str) -> None:
+        with self._connect() as conn:
+            conn.execute(
+                """
+                UPDATE stories SET last_reported_at = ?, updated_at = ?
+                WHERE id = ?
+                """,
+                (reported_at, reported_at, story_id),
+            )
+            conn.commit()
+
+    def record_story_event(self, decision: Any) -> None:
+        with self._connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO story_events (
+                    story_id, article_id, decision, evidence_json, created_at
+                ) VALUES (?, ?, ?, ?, ?)
+                """,
+                (
+                    getattr(decision, "story_id", None),
+                    getattr(decision, "article_id", None),
+                    str(getattr(decision, "decision", decision)),
+                    json.dumps(getattr(decision, "evidence", {}) or {}),
+                    _dt_to_iso(utc_now()),
+                ),
+            )
+            conn.commit()
+
+    def list_story_events(
+        self, story_id: str | None = None, limit: int = 100
+    ) -> list[dict[str, Any]]:
+        with self._connect() as conn:
+            if story_id:
+                rows = conn.execute(
+                    """
+                    SELECT * FROM story_events
+                    WHERE story_id = ?
+                    ORDER BY id DESC LIMIT ?
+                    """,
+                    (story_id, limit),
+                ).fetchall()
+            else:
+                rows = conn.execute(
+                    "SELECT * FROM story_events ORDER BY id DESC LIMIT ?",
+                    (limit,),
+                ).fetchall()
+            return [dict(r) for r in rows]
+
+    def get_watermark(self, mode: str) -> dict[str, Any] | None:
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT * FROM report_watermarks WHERE mode = ?",
+                (mode,),
+            ).fetchone()
+            return dict(row) if row else None
+
+    def set_watermark(
+        self,
+        mode: str,
+        watermark_at: str,
+        *,
+        last_report_id: int | None = None,
+    ) -> None:
+        now = _dt_to_iso(utc_now())
+        with self._connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO report_watermarks (mode, watermark_at, last_report_id, updated_at)
+                VALUES (?, ?, ?, ?)
+                ON CONFLICT(mode) DO UPDATE SET
+                    watermark_at=excluded.watermark_at,
+                    last_report_id=excluded.last_report_id,
+                    updated_at=excluded.updated_at
+                """,
+                (mode, watermark_at, last_report_id, now),
+            )
+            conn.commit()

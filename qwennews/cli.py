@@ -87,19 +87,31 @@ def _build_parser() -> argparse.ArgumentParser:
 
     report_parser = sub.add_parser(
         "report",
-        help="Generate an on-demand Markdown briefing from cached analyses",
+        help="Generate on-demand, hourly-delta, or daily Markdown briefings",
+    )
+    report_parser.add_argument(
+        "--mode",
+        choices=["ondemand", "hourly", "daily"],
+        default="ondemand",
+        help="Report mode (default: ondemand)",
     )
     report_parser.add_argument(
         "--hours",
         type=int,
         default=24,
-        help="Lookback window in hours (default: 24)",
+        help="Lookback window in hours for ondemand mode (default: 24)",
     )
     report_parser.add_argument(
         "--limit",
         type=int,
         default=10,
-        help="Maximum stories in the briefing (default: 10)",
+        help="Maximum stories in the briefing (default: 10; daily often uses 15)",
+    )
+    report_parser.add_argument(
+        "--as-of",
+        dest="as_of",
+        default=None,
+        help="UTC timestamp for deterministic reports (ISO-8601, e.g. 2026-11-15T20:00:00Z)",
     )
     report_parser.add_argument(
         "--output-dir",
@@ -111,6 +123,17 @@ def _build_parser() -> argparse.ArgumentParser:
         "--stdout-only",
         action="store_true",
         help="Print Markdown without writing a file",
+    )
+
+    sync_parser = sub.add_parser(
+        "sync-stories",
+        help="Link stored articles into story memory (near-duplicate aware)",
+    )
+    sync_parser.add_argument(
+        "--limit",
+        type=int,
+        default=500,
+        help="Maximum recent articles to sync (default: 500)",
     )
     return parser
 
@@ -266,22 +289,62 @@ def cmd_analyze(store: ArticleStore, args: argparse.Namespace) -> int:
 
 
 def cmd_report(store: ArticleStore, args: argparse.Namespace) -> int:
+    from datetime import datetime
+
+    from qwennews.config import default_ranking_config_from_env
+    from qwennews.models import ensure_utc
+
     config = load_config()
     if not store.db_path.exists():
         print(f"Database not found at {store.db_path}", file=sys.stderr)
         return 1
     store.init_db()
 
+    as_of = None
+    if args.as_of:
+        try:
+            as_of = ensure_utc(datetime.fromisoformat(args.as_of.replace("Z", "+00:00")))
+        except ValueError:
+            print(f"Invalid --as-of timestamp: {args.as_of}", file=sys.stderr)
+            return 2
+
+    limit = args.limit
+    if args.mode == "daily" and args.limit == 10:
+        limit = 15
+
     output_dir = None if args.stdout_only else (args.output_dir or config.report_dir)
-    markdown, path = generate_report(
+    markdown, path, meta = generate_report(
         store,
         hours=args.hours,
-        limit=args.limit,
+        limit=limit,
         output_dir=output_dir,
+        mode=args.mode,
+        as_of=as_of,
+        ranking_config=default_ranking_config_from_env(),
     )
     print(markdown)
     if path is not None:
         print(f"[saved] {path}", file=sys.stderr)
+    if meta.get("persist_failed"):
+        print("[warn] report persistence failed; watermark not advanced", file=sys.stderr)
+        return 1
+    return 0
+
+
+def cmd_sync_stories(store: ArticleStore, args: argparse.Namespace) -> int:
+    from collections import Counter
+
+    from qwennews.story_memory import sync_stories
+
+    if not store.db_path.exists():
+        print(f"Database not found at {store.db_path}", file=sys.stderr)
+        return 1
+    store.init_db()
+    decisions = sync_stories(store, limit=args.limit)
+    counts = Counter(d.decision.value for d in decisions)
+    print(f"Synced {len(decisions)} article(s) into story memory:")
+    for key, value in sorted(counts.items()):
+        print(f"  - {key}: {value}")
     return 0
 
 
@@ -310,6 +373,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return cmd_analyze(store, args)
     if args.command == "report":
         return cmd_report(store, args)
+    if args.command == "sync-stories":
+        return cmd_sync_stories(store, args)
 
     parser.error(f"Unknown command: {args.command}")
     return 2

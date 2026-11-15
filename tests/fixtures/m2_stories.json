@@ -1,0 +1,45 @@
+{
+  "same_launch_openai": {
+    "title": "OpenAI launches ChatGPT Wallet for agent payments",
+    "source": "openai",
+    "url": "https://openai.com/index/introducing-chatgpt-wallet",
+    "text": "OpenAI introduces ChatGPT Wallet, enabling agents to pay without card details. Pro users in the US can approve each purchase with biometrics via Amex, Mastercard, and Visa."
+  },
+  "same_launch_techcrunch": {
+    "title": "ChatGPT Wallet lets AI agents check out securely",
+    "source": "techcrunch",
+    "url": "https://techcrunch.com/2026/11/13/chatgpt-wallet-agents",
+    "text": "OpenAI's ChatGPT Wallet lets agents complete checkout without exposing card numbers. US ChatGPT Pro subscribers approve Face ID-gated payments; Amex, Mastercard, and Visa are partners."
+  },
+  "followup_wallet": {
+    "title": "ChatGPT Wallet expands to enterprise seats next month",
+    "source": "openai",
+    "url": "https://openai.com/index/chatgpt-wallet-enterprise",
+    "text": "Following the consumer ChatGPT Wallet launch, OpenAI says enterprise seats will gain agent checkout next month with admin spend controls and audit logs. Card details remain tokenized."
+  },
+  "generic_ai_a": {
+    "title": "Why AI startups are raising again",
+    "source": "techcrunch",
+    "url": "https://techcrunch.com/2026/11/01/ai-startups-raising",
+    "text": "Venture investors discuss capital returning to AI application startups after a quiet summer. The piece surveys fundraising sentiment without announcing a specific product."
+  },
+  "generic_ai_b": {
+    "title": "OpenAI competitors jockey for enterprise share",
+    "source": "techcrunch",
+    "url": "https://techcrunch.com/2026/11/02/openai-competitors-enterprise",
+    "text": "A broad market overview of enterprise AI assistants from multiple vendors. No single product launch is announced; the article compares sales motions and procurement trends."
+  },
+  "thin_video": {
+    "title": "A short explainer on how El Niño works [video]",
+    "source": "hackernews",
+    "url": "https://www.youtube.com/watch?v=example",
+    "text": "2026-27 winter outlook",
+    "hn_score": 500
+  },
+  "gemini_hydrogen": {
+    "title": "Introducing Gemini 4 Hydrogen",
+    "source": "deepmind",
+    "url": "https://deepmind.google/blog/introducing-gemini-4-hydrogen",
+    "text": "Google introduces Gemini 4 Hydrogen for rapid execution in agentic workflows. Early testing cites faster coding tasks and lower token usage versus prior Gemini Flash-class models."
+  }
+}

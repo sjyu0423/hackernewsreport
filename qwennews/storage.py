@@ -80,6 +80,33 @@ CREATE INDEX IF NOT EXISTS idx_articles_discovered_at ON articles(discovered_at)
 CREATE INDEX IF NOT EXISTS idx_articles_published_at ON articles(published_at);
 CREATE INDEX IF NOT EXISTS idx_article_sources_source ON article_sources(source);
 CREATE INDEX IF NOT EXISTS idx_articles_canonical_url ON articles(canonical_url);
+
+CREATE TABLE IF NOT EXISTS article_analyses (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    article_id TEXT NOT NULL,
+    content_hash TEXT NOT NULL,
+    model_id TEXT NOT NULL,
+    config_version TEXT NOT NULL,
+    analysis_json TEXT NOT NULL,
+    metrics_json TEXT,
+    raw_response TEXT,
+    thinking TEXT,
+    created_at TEXT NOT NULL,
+    UNIQUE (article_id, content_hash, model_id, config_version),
+    FOREIGN KEY (article_id) REFERENCES articles(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_article_analyses_article
+    ON article_analyses(article_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS reports (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    created_at TEXT NOT NULL,
+    hours INTEGER NOT NULL,
+    story_count INTEGER NOT NULL,
+    path TEXT,
+    markdown TEXT NOT NULL
+);
 """
 
 
@@ -111,7 +138,7 @@ class ArticleStore:
             conn.execute(
                 "INSERT INTO schema_meta(key, value) VALUES(?, ?) "
                 "ON CONFLICT(key) DO UPDATE SET value=excluded.value",
-                ("schema_version", "1"),
+                ("schema_version", "2"),
             )
             conn.commit()
         logger.info("Initialized database at %s", self.db_path)
@@ -474,3 +501,102 @@ class ArticleStore:
         with self._connect() as conn:
             row = conn.execute("SELECT * FROM articles WHERE id = ?", (article_id,)).fetchone()
             return dict(row) if row else None
+
+    def get_analysis(
+        self,
+        article_id: str,
+        *,
+        content_hash: str,
+        model_id: str,
+        config_version: str,
+    ) -> dict[str, Any] | None:
+        with self._connect() as conn:
+            row = conn.execute(
+                """
+                SELECT * FROM article_analyses
+                WHERE article_id = ? AND content_hash = ?
+                  AND model_id = ? AND config_version = ?
+                ORDER BY id DESC
+                LIMIT 1
+                """,
+                (article_id, content_hash, model_id, config_version),
+            ).fetchone()
+            return dict(row) if row else None
+
+    def get_latest_analysis(self, article_id: str) -> dict[str, Any] | None:
+        with self._connect() as conn:
+            row = conn.execute(
+                """
+                SELECT * FROM article_analyses
+                WHERE article_id = ?
+                ORDER BY id DESC
+                LIMIT 1
+                """,
+                (article_id,),
+            ).fetchone()
+            return dict(row) if row else None
+
+    def save_analysis(
+        self,
+        *,
+        article_id: str,
+        content_hash: str,
+        model_id: str,
+        config_version: str,
+        analysis: Any,
+        metrics: dict[str, Any] | None = None,
+        raw_response: str | None = None,
+        thinking: str | None = None,
+    ) -> None:
+        analysis_json = analysis if isinstance(analysis, str) else analysis.model_dump_json()
+        with self._connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO article_analyses (
+                    article_id, content_hash, model_id, config_version,
+                    analysis_json, metrics_json, raw_response, thinking, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(article_id, content_hash, model_id, config_version)
+                DO UPDATE SET
+                    analysis_json=excluded.analysis_json,
+                    metrics_json=excluded.metrics_json,
+                    raw_response=excluded.raw_response,
+                    thinking=excluded.thinking,
+                    created_at=excluded.created_at
+                """,
+                (
+                    article_id,
+                    content_hash,
+                    model_id,
+                    config_version,
+                    analysis_json,
+                    json.dumps(metrics or {}),
+                    raw_response,
+                    thinking,
+                    _dt_to_iso(utc_now()),
+                ),
+            )
+            conn.commit()
+
+    def save_report(
+        self,
+        *,
+        path: str | None,
+        hours: int,
+        story_count: int,
+        markdown: str,
+    ) -> int:
+        with self._connect() as conn:
+            cur = conn.execute(
+                """
+                INSERT INTO reports (created_at, hours, story_count, path, markdown)
+                VALUES (?, ?, ?, ?, ?)
+                """,
+                (_dt_to_iso(utc_now()), hours, story_count, path, markdown),
+            )
+            conn.commit()
+            return int(cur.lastrowid)
+
+    def analysis_count(self) -> int:
+        with self._connect() as conn:
+            return int(conn.execute("SELECT COUNT(*) AS c FROM article_analyses").fetchone()["c"])

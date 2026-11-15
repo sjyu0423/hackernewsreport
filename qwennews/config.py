@@ -71,7 +71,7 @@ def _env_int(name: str, default: int) -> int:
 
 @dataclass(slots=True)
 class Config:
-    """Runtime configuration for ingestion."""
+    """Runtime configuration for ingestion and local analysis."""
 
     db_path: Path = field(default_factory=lambda: Path("data/qwennews.db"))
     user_agent: str = "QwenNews/0.1 (+https://localhost; local news aggregator; research use)"
@@ -84,6 +84,14 @@ class Config:
     enabled_sources: tuple[str, ...] = ALL_SOURCES
     extract_content: bool = True
     respect_robots: bool = True
+    # Local Ollama / Qwen analysis (M1)
+    ollama_base_url: str = "http://127.0.0.1:11434"
+    ollama_model: str = "qwen3:4b"
+    ollama_timeout: float = 180.0
+    ollama_num_predict: int = 900
+    ollama_think: bool = False
+    ollama_temperature: float = 0.1
+    report_dir: Path = field(default_factory=lambda: Path("data/reports"))
 
     @property
     def timeout(self) -> float:
@@ -127,4 +135,11 @@ def load_config(env_file: str | Path | None = ".env") -> Config:
         enabled_sources=enabled or ALL_SOURCES,
         extract_content=_env_bool("QWENNEWS_EXTRACT_CONTENT", True),
         respect_robots=_env_bool("QWENNEWS_RESPECT_ROBOTS", True),
+        ollama_base_url=os.getenv("QWENNEWS_OLLAMA_BASE_URL", "http://127.0.0.1:11434"),
+        ollama_model=os.getenv("QWENNEWS_OLLAMA_MODEL", "qwen3:4b"),
+        ollama_timeout=_env_float("QWENNEWS_OLLAMA_TIMEOUT", 180.0),
+        ollama_num_predict=_env_int("QWENNEWS_OLLAMA_NUM_PREDICT", 900),
+        ollama_think=_env_bool("QWENNEWS_OLLAMA_THINK", False),
+        ollama_temperature=_env_float("QWENNEWS_OLLAMA_TEMPERATURE", 0.1),
+        report_dir=Path(os.getenv("QWENNEWS_REPORT_DIR", "data/reports")),
     )

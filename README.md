@@ -1,13 +1,17 @@
 # QwenNews
 
-Local AI news reporting system. **Milestone 0** implements the news ingestion foundation only: source adapters, normalization, polite content extraction, deduplication, SQLite storage, and a CLI.
+Local AI news reporting system.
 
-Later milestones will add local Qwen3 ranking/summarization via Ollama, hourly deltas, daily briefings, and a dashboard. Those are intentionally out of scope for M0.
+- **M0:** news ingestion (HN + AI lab/blog feeds → SQLite)
+- **M1:** local Qwen3 4B analysis via Ollama + on-demand Markdown briefing
+
+Hourly automation, notifications, semantic dedupe, and a dashboard remain out of scope.
 
 ## Requirements
 
 - Python 3.11+ (developed/verified with 3.15)
-- Network access for live collection (unit tests use mocks; no live HTTP)
+- Network access for live collection (unit tests mock HTTP)
+- For analysis: local [Ollama](https://ollama.com) with a Qwen3 4B model installed (this environment uses `qwen3:4b`)
 
 ## Setup
 
@@ -25,21 +29,26 @@ cp .env.example .env   # optional
 python -m qwennews init-db
 python -m qwennews collect
 python -m qwennews collect --source hackernews
-python -m qwennews collect --source openai --source deepmind --no-extract
 python -m qwennews recent --hours 24
 python -m qwennews stats
+
+# M1 — local analysis + on-demand briefing
+python -m qwennews analyze --limit 10
+python -m qwennews report --hours 24 --limit 10
 ```
 
-Configuration is via environment variables (see `.env.example`): database path, timeouts, per-source limits, concurrency, User-Agent, and source enablement. No API keys are required for public feeds.
+Configuration is via environment variables (see `.env.example`). No API keys are required for public feeds. Analysis uses only the configured local Ollama endpoint (no cloud fallback).
 
 ## Architecture
 
-See [docs/architecture.md](docs/architecture.md) and the M0 implementation record in [docs/milestones/m0.md](docs/milestones/m0.md).
+See [docs/architecture.md](docs/architecture.md), [docs/milestones/m0.md](docs/milestones/m0.md), and [docs/milestones/m1.md](docs/milestones/m1.md).
 
 ```
-Sources (HN API / RSS) → normalize → canonicalize/dedupe → SQLite
-                                         ↓
-                              polite article extraction (optional)
+Sources → normalize/dedupe → SQLite → (optional) extract text
+                                      ↓
+                         Ollama qwen3:4b structured analysis (cached)
+                                      ↓
+                         deterministic Markdown briefing
 ```
 
 ## Tests
@@ -54,3 +63,4 @@ ruff check qwennews tests
 - Respects `robots.txt` and does not bypass paywalls, auth, or anti-bot controls.
 - Rejects local/private/unsafe URLs and unsafe redirects (SSRF protection).
 - HN discussion comments are never treated as article body text.
+- Article bodies are treated as untrusted data in analysis prompts.

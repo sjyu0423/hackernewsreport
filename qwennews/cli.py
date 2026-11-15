@@ -1,22 +1,25 @@
-"""Command-line interface for QwenNews M0."""
+"""Command-line interface for QwenNews (M0 ingestion + M1 analysis)."""
 
 from __future__ import annotations
 
 import argparse
 import sys
 from collections.abc import Sequence
+from pathlib import Path
 
 from qwennews import __version__
+from qwennews.analyze import analyze_articles
 from qwennews.collect import collect_news
 from qwennews.config import ALL_SOURCES, load_config
 from qwennews.logging_config import setup_logging
+from qwennews.report import generate_report
 from qwennews.storage import ArticleStore
 
 
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="qwennews",
-        description="QwenNews M0 — local news ingestion foundation",
+        description="QwenNews — local news ingestion and Qwen3 analysis",
     )
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     parser.add_argument(
@@ -59,6 +62,56 @@ def _build_parser() -> argparse.ArgumentParser:
     )
 
     sub.add_parser("stats", help="Print database and collection statistics")
+
+    analyze_parser = sub.add_parser(
+        "analyze",
+        help="Analyze stored articles with local Qwen via Ollama",
+    )
+    analyze_parser.add_argument(
+        "--limit",
+        type=int,
+        default=10,
+        help="Maximum articles to analyze (default: 10)",
+    )
+    analyze_parser.add_argument(
+        "--hours",
+        type=int,
+        default=24,
+        help="Only consider articles from the last N hours (default: 24)",
+    )
+    analyze_parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Ignore analysis cache and re-run inference",
+    )
+
+    report_parser = sub.add_parser(
+        "report",
+        help="Generate an on-demand Markdown briefing from cached analyses",
+    )
+    report_parser.add_argument(
+        "--hours",
+        type=int,
+        default=24,
+        help="Lookback window in hours (default: 24)",
+    )
+    report_parser.add_argument(
+        "--limit",
+        type=int,
+        default=10,
+        help="Maximum stories in the briefing (default: 10)",
+    )
+    report_parser.add_argument(
+        "--output-dir",
+        type=Path,
+        default=None,
+        help="Directory for persisted Markdown reports (default: config report_dir)",
+    )
+    report_parser.add_argument(
+        "--stdout-only",
+        action="store_true",
+        help="Print Markdown without writing a file",
+    )
     return parser
 
 
@@ -147,6 +200,7 @@ def cmd_stats(store: ArticleStore) -> int:
     data = store.stats()
     print(f"Database: {data['db_path']}")
     print(f"Articles: {data['article_count']}")
+    print(f"Cached analyses: {store.analysis_count()}")
     print("By source:")
     if data["by_source"]:
         for source, count in data["by_source"].items():
@@ -173,6 +227,64 @@ def cmd_stats(store: ArticleStore) -> int:
     return 0
 
 
+def cmd_analyze(store: ArticleStore, args: argparse.Namespace) -> int:
+    config = load_config()
+    if not store.db_path.exists():
+        print(
+            f"Database not found at {store.db_path}. Run `python -m qwennews init-db` first.",
+            file=sys.stderr,
+        )
+        return 1
+    # Ensure M1 tables exist on older DBs.
+    store.init_db()
+
+    print(
+        f"Analyzing up to {args.limit} article(s) with model={config.ollama_model} "
+        f"think={config.ollama_think} (concurrency=1)…"
+    )
+    stats = analyze_articles(
+        store,
+        config,
+        limit=args.limit,
+        hours=args.hours,
+        force=args.force,
+    )
+    print()
+    print("Analysis complete")
+    print(f"  Attempted:   {stats.attempted}")
+    print(f"  Succeeded:   {stats.succeeded}")
+    print(f"  Failed:      {stats.failed}")
+    print(f"  Cached hits: {stats.cached}")
+    print(f"  Inferred:    {stats.inferred}")
+    print(f"  Elapsed:     {stats.elapsed_seconds}s")
+    if stats.errors:
+        print("  Errors:")
+        for err in stats.errors[:20]:
+            print(f"    - {err}")
+        return 1 if stats.succeeded == 0 else 0
+    return 0
+
+
+def cmd_report(store: ArticleStore, args: argparse.Namespace) -> int:
+    config = load_config()
+    if not store.db_path.exists():
+        print(f"Database not found at {store.db_path}", file=sys.stderr)
+        return 1
+    store.init_db()
+
+    output_dir = None if args.stdout_only else (args.output_dir or config.report_dir)
+    markdown, path = generate_report(
+        store,
+        hours=args.hours,
+        limit=args.limit,
+        output_dir=output_dir,
+    )
+    print(markdown)
+    if path is not None:
+        print(f"[saved] {path}", file=sys.stderr)
+    return 0
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = _build_parser()
     args = parser.parse_args(list(argv) if argv is not None else None)
@@ -194,6 +306,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         return cmd_recent(store, args)
     if args.command == "stats":
         return cmd_stats(store)
+    if args.command == "analyze":
+        return cmd_analyze(store, args)
+    if args.command == "report":
+        return cmd_report(store, args)
 
     parser.error(f"Unknown command: {args.command}")
     return 2

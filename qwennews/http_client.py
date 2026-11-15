@@ -109,9 +109,7 @@ def safe_get(
         body = response.content
         if len(body) > max_bytes:
             response.close()
-            raise ResponseTooLargeError(
-                f"Response exceeded max size of {max_bytes} bytes"
-            )
+            raise ResponseTooLargeError(f"Response exceeded max size of {max_bytes} bytes")
         return response
 
     raise UnsafeURLError(f"Too many redirects fetching {url}")

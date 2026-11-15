@@ -7,6 +7,7 @@ Local AI news reporting system.
 - **M2:** story memory, conservative near-dupe linking, improved ranking, hourly/daily delta reports
 - **M3:** automated hourly/daily orchestration, mode-specific report state, LaunchAgent + notifications
 - **M4:** local read-only news dashboard (FastAPI + Next.js)
+- **M4.1:** one-command launcher, safe Markdown reading UX, scheduler verification notes
 
 No cloud inference, model fine-tuning, or mobile app.
 
@@ -49,22 +50,29 @@ python -m qwennews run-hourly --max-analyze 5
 python -m qwennews run-daily
 python -m qwennews status
 
-# Dashboard API (127.0.0.1 only)
+# Dashboard API only (127.0.0.1)
 python -m qwennews dashboard-api --port 8765
+
+# One-command dashboard (API + Next.js)
+python -m qwennews dashboard
+python -m qwennews dashboard --mode prod
 ```
 
 ### Local dashboard
 
 ```bash
-# Terminal A
-python -m qwennews dashboard-api --host 127.0.0.1 --port 8765
+# Recommended: one command (Ctrl-C stops both)
+python -m qwennews dashboard
+# or
+python scripts/run_dashboard.py
 
-# Terminal B
-cd dashboard
-npm run dev   # http://127.0.0.1:3000
+# UI:  http://127.0.0.1:3000
+# API: http://127.0.0.1:8765
 ```
 
-Details: [docs/milestones/m4.md](docs/milestones/m4.md).
+If a port is already in use, the launcher refuses to start and will **not** kill unrelated processes.
+
+Details: [docs/milestones/m4.md](docs/milestones/m4.md), [docs/milestones/m4_1.md](docs/milestones/m4_1.md).
 
 ### Hourly / daily scheduling (macOS)
 

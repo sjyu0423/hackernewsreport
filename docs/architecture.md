@@ -1,4 +1,4 @@
-# QwenNews Architecture (M0–M4)
+# QwenNews Architecture (M0–M4.1)
 
 ## Goals
 
@@ -38,6 +38,12 @@ M4 adds a local dashboard:
 20. Next.js editorial UI for Today / Hourly / Stories / History / Status.
 21. No new inference; no LaunchAgent changes from the dashboard path.
 
+M4.1 polishes the product surface:
+
+22. One-command localhost launcher (`qwennews dashboard` / `scripts/run_dashboard.py`) for API + Next.
+23. Safe Markdown rendering (sanitize + http(s)-only links); clearer generation vs publication times.
+24. Explicit operational verification of LaunchAgent schedules (do not claim timer success without `runs` / logs).
+
 Cloud inference, fine-tuning, and embedding-based clustering remain deferred.
 
 ## Package layout
@@ -64,10 +70,12 @@ Cloud inference, fine-tuning, and embedding-based clustering remain deferred.
 | `qwennews.locking` | Advisory single-instance file lock |
 | `qwennews.notify` | Optional macOS `osascript` notifications |
 | `qwennews.launchd` | LaunchAgent plist render + validate |
-| `qwennews.cli` | CLI including `run-hourly`, `run-daily`, `status`, `dashboard-api` |
+| `qwennews.cli` | CLI including `run-hourly`, `run-daily`, `status`, `dashboard-api`, `dashboard` |
 | `qwennews.readonly_store` | SQLite read-only access for the dashboard |
 | `qwennews.dashboard_api` | FastAPI app (localhost, GET-only) |
+| `qwennews.dashboard_launcher` | Parent process: start/stop API + Next on localhost |
 | `dashboard/` | Next.js TypeScript UI |
+| `scripts/run_dashboard.py` | Convenience entry for the launcher |
 
 ## Data model
 

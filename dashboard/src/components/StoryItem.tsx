@@ -10,15 +10,38 @@ export function StoryItem({
 }) {
   const primary = story.primary;
   const href = safeHref(primary?.canonical_url ?? null);
+  const published = primary?.published_at;
+  const discovered = primary?.discovered_at;
   return (
     <article className="story">
       <h2>{story.title}</h2>
       <div className="meta">
         {story.category ? <span className="pill">{story.category}</span> : null}
         <span>First seen {formatWhen(story.first_seen_at)}</span>
-        <span>Updated {formatWhen(story.last_seen_at)}</span>
+        <span>Story updated {formatWhen(story.last_seen_at)}</span>
         <span>{story.article_count} source{story.article_count === 1 ? "" : "s"}</span>
       </div>
+      <div className="meta time-split" aria-label="Publication vs discovery">
+        {published ? (
+          <span>
+            Article published <time dateTime={published}>{formatWhen(published)}</time>
+          </span>
+        ) : (
+          <span>Article published — (not stored)</span>
+        )}
+        {discovered ? (
+          <span>
+            Ingested <time dateTime={discovered}>{formatWhen(discovered)}</time>
+          </span>
+        ) : null}
+      </div>
+      {primary?.sources ? (
+        <p className="attribution">
+          Source attribution: <strong>{primary.sources}</strong>
+        </p>
+      ) : (
+        <p className="attribution muted">Source attribution unavailable.</p>
+      )}
       {primary?.summary ? <p className="summary">{primary.summary}</p> : null}
       {primary?.why_it_matters ? (
         <p className="why">
@@ -36,7 +59,7 @@ export function StoryItem({
         <p className="why">No safe source URL available for this story.</p>
       )}
       {showArticles && story.articles.length > 1 ? (
-        <ul>
+        <ul className="source-list">
           {story.articles.map((a) => {
             const link = safeHref(a.canonical_url);
             return (
@@ -49,6 +72,7 @@ export function StoryItem({
                   a.title
                 )}
                 {a.sources ? ` · ${a.sources}` : ""}
+                {a.published_at ? ` · published ${formatWhen(a.published_at)}` : ""}
               </li>
             );
           })}

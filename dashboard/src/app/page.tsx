@@ -19,8 +19,9 @@ export default async function TodayPage() {
       <>
         <h1 className="page-title">Today</h1>
         <StateBanner kind="error">
-          Cannot reach the local API at {getApiBase()}. Start it with{" "}
-          <code>python -m qwennews dashboard-api</code>. ({error})
+          Cannot reach the local API at {getApiBase()}. Start the dashboard with{" "}
+          <code>python -m qwennews dashboard</code> (or{" "}
+          <code>python scripts/run_dashboard.py</code>). ({error})
         </StateBanner>
       </>
     );
@@ -42,12 +43,16 @@ export default async function TodayPage() {
 
       {data.report ? (
         <StateBanner>
-          {data.report.mode?.toUpperCase()} briefing · as of{" "}
-          {formatWhen(data.report.as_of || data.report.created_at)} ·{" "}
-          {data.report.story_count} listed in report
+          {data.report.mode?.toUpperCase()} briefing · generated{" "}
+          {formatWhen(data.report.as_of || data.report.created_at)} (report time) ·{" "}
+          {data.report.story_count} listed in report. Article publication times appear on each
+          story card when the feed provided them.
         </StateBanner>
       ) : (
-        <StateBanner kind="warn">No reports available yet.</StateBanner>
+        <StateBanner kind="warn">
+          No reports available yet. Run{" "}
+          <code>python -m qwennews run-daily</code> or wait for the daily LaunchAgent.
+        </StateBanner>
       )}
 
       {data.stories.length === 0 ? (

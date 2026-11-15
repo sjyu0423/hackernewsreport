@@ -29,10 +29,12 @@ const story: StoryCard = {
 };
 
 describe("StoryItem", () => {
-  it("renders title, summary, and safe source link", () => {
+  it("renders title, summary, attribution, and safe source link", () => {
     render(<StoryItem story={story} />);
     expect(screen.getByRole("heading", { name: /Gemini 4 Hydrogen/i })).toBeInTheDocument();
     expect(screen.getByText(/Grounded summary/i)).toBeInTheDocument();
+    expect(screen.getByText(/Source attribution/i)).toBeInTheDocument();
+    expect(screen.getByText(/Article published/i)).toBeInTheDocument();
     const link = screen.getByRole("link", { name: /Open original source/i });
     expect(link).toHaveAttribute("href", "https://example.com/gemini");
   });

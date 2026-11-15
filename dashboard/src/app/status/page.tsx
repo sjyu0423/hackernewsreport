@@ -86,7 +86,8 @@ export default async function StatusPage() {
         <h1 className="page-title">System status</h1>
         <StateBanner kind="error">
           Cannot reach API at {getApiBase()}:{" "}
-          {err instanceof Error ? err.message : "unknown error"}
+          {err instanceof Error ? err.message : "unknown error"}. Start with{" "}
+          <code>python -m qwennews dashboard</code>.
         </StateBanner>
       </>
     );

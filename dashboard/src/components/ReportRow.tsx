@@ -11,9 +11,13 @@ function kindLabel(kind: string | null): string {
 
 export function ReportRow({ report }: { report: ReportSummary }) {
   const kind = report.kind || "unknown";
+  const generated = report.as_of || report.created_at;
   return (
     <div className="report-row">
-      <div className="when">{formatWhen(report.as_of || report.created_at)}</div>
+      <div className="when">
+        <div>{formatWhen(generated)}</div>
+        <div className="meta-hint">generated</div>
+      </div>
       <div>
         <h3>
           <Link href={`/history/${report.id}`}>
@@ -22,7 +26,9 @@ export function ReportRow({ report }: { report: ReportSummary }) {
         </h3>
         <p className={`kind-${kind}`}>
           {report.story_count === 1 ? "1 story" : `${report.story_count} stories`}
-          {report.window_start ? ` · from ${formatWhen(report.window_start)}` : ""}
+          {report.window_start
+            ? ` · coverage window from ${formatWhen(report.window_start)}`
+            : ""}
         </p>
       </div>
       <div>

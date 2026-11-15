@@ -192,6 +192,19 @@ def _build_parser() -> argparse.ArgumentParser:
     dash_parser.add_argument("--host", default="127.0.0.1")
     dash_parser.add_argument("--port", type=int, default=8765)
     dash_parser.add_argument("--reload", action="store_true")
+
+    launch_parser = sub.add_parser(
+        "dashboard",
+        help="One-command local dashboard (API + Next.js on localhost)",
+    )
+    launch_parser.add_argument(
+        "--mode",
+        choices=["dev", "prod"],
+        default="dev",
+        help="dev = next dev; prod = next start (builds if needed)",
+    )
+    launch_parser.add_argument("--api-port", type=int, default=8765)
+    launch_parser.add_argument("--web-port", type=int, default=3000)
     return parser
 
 
@@ -528,6 +541,19 @@ def main(argv: Sequence[str] | None = None) -> int:
             reload=bool(args.reload),
         )
         return 0
+    if args.command == "dashboard":
+        from qwennews.dashboard_launcher import run_launcher
+
+        return run_launcher(
+            [
+                "--mode",
+                args.mode,
+                "--api-port",
+                str(args.api_port),
+                "--web-port",
+                str(args.web_port),
+            ]
+        )
 
     parser.error(f"Unknown command: {args.command}")
     return 2

@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  TEMPLATE ONLY — do not load this file directly.
+  Generate a user-specific daily plist:
+
+    python scripts/generate_launchagent.py --daily
+    python scripts/generate_launchagent.py --daily --time 07:00
+
+  Placeholders:
+    __PYTHON__  __PROJECT_ROOT__  __LOG_DIR__  __HOME__  __HOUR__  __MINUTE__
+
+  StartCalendarInterval uses the Mac's local timezone.
+  Shared orchestrate.lock prevents concurrent runs with the hourly agent.
+  ThrottleInterval limits sleep/wake catch-up bursts.
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.qwennews.daily</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>__PYTHON__</string>
+    <string>-m</string>
+    <string>qwennews</string>
+    <string>run-daily</string>
+  </array>
+  <key>WorkingDirectory</key>
+  <string>__PROJECT_ROOT__</string>
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key>
+    <integer>__HOUR__</integer>
+    <key>Minute</key>
+    <integer>__MINUTE__</integer>
+  </dict>
+  <key>ThrottleInterval</key>
+  <integer>3600</integer>
+  <key>RunAtLoad</key>
+  <false/>
+  <key>KeepAlive</key>
+  <false/>
+  <key>ProcessType</key>
+  <string>Background</string>
+  <key>Nice</key>
+  <integer>5</integer>
+  <key>StandardOutPath</key>
+  <string>__LOG_DIR__/daily.stdout.log</string>
+  <key>StandardErrorPath</key>
+  <string>__LOG_DIR__/daily.stderr.log</string>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/usr/bin:/bin:/usr/sbin:/sbin</string>
+    <key>HOME</key>
+    <string>__HOME__</string>
+    <key>QWENNEWS_PROJECT_ROOT</key>
+    <string>__PROJECT_ROOT__</string>
+  </dict>
+</dict>
+</plist>

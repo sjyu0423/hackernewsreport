@@ -51,6 +51,9 @@ class StoryView:
     why_it_matters: str | None = None
     limitations: str | None = None
     key_claims: list[str] = field(default_factory=list)
+    # M3: mode-specific last reported timestamps
+    last_reported_hourly_at: str | None = None
+    last_reported_daily_at: str | None = None
 
 
 @dataclass(slots=True)

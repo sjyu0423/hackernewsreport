@@ -94,6 +94,14 @@ class Config:
     report_dir: Path = field(default_factory=lambda: Path("data/reports"))
     # M2 ranking: optional "category:score,category:score" overrides
     category_priority_overrides: dict[str, float] = field(default_factory=dict)
+    # M3 orchestration / resource safety
+    max_analyze_per_cycle: int = 20
+    hourly_report_limit: int = 10
+    daily_report_limit: int = 15
+    daily_local_time: str = "07:00"
+    daily_timezone: str = "America/New_York"
+    notify_on_success: bool = False
+    http_max_retries: int = 2
 
     @property
     def timeout(self) -> float:
@@ -147,6 +155,13 @@ def load_config(env_file: str | Path | None = ".env") -> Config:
         category_priority_overrides=_parse_category_priorities(
             os.getenv("QWENNEWS_CATEGORY_PRIORITIES", "")
         ),
+        max_analyze_per_cycle=_env_int("QWENNEWS_MAX_ANALYZE_PER_CYCLE", 20),
+        hourly_report_limit=_env_int("QWENNEWS_HOURLY_REPORT_LIMIT", 10),
+        daily_report_limit=_env_int("QWENNEWS_DAILY_REPORT_LIMIT", 15),
+        daily_local_time=os.getenv("QWENNEWS_DAILY_LOCAL_TIME", "07:00"),
+        daily_timezone=os.getenv("QWENNEWS_DAILY_TIMEZONE", "America/New_York"),
+        notify_on_success=_env_bool("QWENNEWS_NOTIFY_ON_SUCCESS", False),
+        http_max_retries=_env_int("QWENNEWS_HTTP_MAX_RETRIES", 2),
     )
 
 

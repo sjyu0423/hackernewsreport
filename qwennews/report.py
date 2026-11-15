@@ -122,6 +122,8 @@ def build_story_views(
         articles = store.list_story_articles(story["id"])
         if not articles:
             continue
+        hourly_rep = store.get_story_reported_at(story["id"], "hourly")
+        daily_rep = store.get_story_reported_at(story["id"], "daily")
         # Prefer primary analyzed article with highest M2 rank
         best_analysis: ArticleAnalysis | None = None
         best_article: dict[str, Any] | None = None
@@ -153,6 +155,8 @@ def build_story_views(
                     evidence_sufficiency="insufficient",
                     summary="No validated analysis is available for this story yet.",
                     limitations="Analysis missing; claims cannot be grounded.",
+                    last_reported_hourly_at=hourly_rep,
+                    last_reported_daily_at=daily_rep,
                 )
             )
             continue
@@ -183,6 +187,8 @@ def build_story_views(
                 why_it_matters=best_analysis.why_it_matters,
                 limitations=best_analysis.limitations,
                 key_claims=list(best_analysis.key_claims),
+                last_reported_hourly_at=hourly_rep,
+                last_reported_daily_at=daily_rep,
             )
         )
     views.sort(
@@ -228,7 +234,8 @@ def select_hourly_delta(
         # Ignore stories that only exist after as_of
         first = _parse_iso(view.first_seen_at)
         sig = _parse_iso(view.significant_update_at)
-        last_rep = _parse_iso(view.last_reported_at)
+        # Mode-specific reported timestamp (hourly must not use daily marks)
+        last_rep = _parse_iso(view.last_reported_hourly_at)
         if first and first > as_of:
             continue
 
@@ -271,9 +278,7 @@ def select_hourly_delta(
             if not is_meaningful and not is_new_source:
                 continue
         if last_rep is not None and watermark is None:
-            # First hourly after stories were marked reported by another mode:
-            # still allow if never hourly-reported; last_reported_at is shared.
-            # Only skip if last_reported_at >= first_seen (already covered).
+            # Mode-specific: daily marks must not suppress hourly (and vice versa).
             pass
 
         if is_new and (last_rep is None or (watermark is not None and last_rep <= watermark)):
@@ -287,6 +292,18 @@ def select_hourly_delta(
         elif watermark is None and last_rep is None and first and first <= as_of:
             # First ever hourly: include unreported stories
             new_dev.append(view)
+        else:
+            # M3.1 backlog: ready processing rows must remain reportable even when
+            # a prior partial cycle advanced wall-clock past first_seen.
+            proc = store.get_story_processing(view.id, "hourly")
+            if (
+                proc
+                and proc.get("status") == "ready"
+                and last_rep is None
+                and first
+                and first <= as_of
+            ):
+                new_dev.append(view)
 
     # De-dupe while preserving order
     def _uniq(items: list[StoryView]) -> list[StoryView]:
@@ -644,11 +661,20 @@ def generate_report(
             significant_only=True,
             simulate_failure=simulate_persist_failure,
         )
-        if path is not None and advance_watermark and not simulate_persist_failure:
-            store.set_watermark("hourly", _fmt_ts(as_of_dt), last_report_id=report_id)
+        if path is not None and not simulate_persist_failure:
+            # Mode-specific story marks always advance on successful persist so
+            # partial backlog cycles never re-publish the same stories.
             for view in [*new_dev, *ongoing]:
-                store.mark_story_reported(view.id, _fmt_ts(as_of_dt))
-            meta["watermark_advanced"] = True
+                store.mark_story_reported(
+                    view.id,
+                    _fmt_ts(as_of_dt),
+                    mode="hourly",
+                    report_id=report_id,
+                )
+            meta["reported_story_ids"] = [v.id for v in [*new_dev, *ongoing]]
+            if advance_watermark:
+                store.set_watermark("hourly", _fmt_ts(as_of_dt), last_report_id=report_id)
+                meta["watermark_advanced"] = True
         elif simulate_persist_failure:
             meta["persist_failed"] = True
         meta["new_count"] = len(new_dev)
@@ -656,6 +682,20 @@ def generate_report(
         return markdown, path, meta
 
     # daily
+    window_start = _fmt_ts(as_of_dt - timedelta(hours=24))
+    as_of_s = _fmt_ts(as_of_dt)
+    if store.has_completed_report_for_window(
+        mode="daily", as_of=as_of_s, window_start=window_start
+    ):
+        meta["duplicate_window"] = True
+        meta["story_count"] = 0
+        md = (
+            "# QwenNews Daily Briefing\n\n"
+            f"- As of (UTC): `{as_of_s}`\n"
+            "- Status: **skipped** (daily report already published for this window)\n"
+        )
+        return md, None, meta
+
     daily = select_daily_stories(views, as_of=as_of_dt, limit=limit)
     markdown = render_daily_markdown(daily, as_of=as_of_dt, generated_at=as_of_dt)
     path, report_id = _maybe_persist(
@@ -665,15 +705,21 @@ def generate_report(
         hours=24,
         story_count=len(daily),
         mode="daily",
-        as_of=_fmt_ts(as_of_dt),
-        window_start=_fmt_ts(as_of_dt - timedelta(hours=24)),
+        as_of=as_of_s,
+        window_start=window_start,
         simulate_failure=simulate_persist_failure,
     )
     if path is not None and advance_watermark and not simulate_persist_failure:
-        store.set_watermark("daily", _fmt_ts(as_of_dt), last_report_id=report_id)
+        store.set_watermark("daily", as_of_s, last_report_id=report_id)
         for view in daily:
-            store.mark_story_reported(view.id, _fmt_ts(as_of_dt))
+            store.mark_story_reported(
+                view.id,
+                as_of_s,
+                mode="daily",
+                report_id=report_id,
+            )
         meta["watermark_advanced"] = True
+        meta["reported_story_ids"] = [v.id for v in daily]
     elif simulate_persist_failure:
         meta["persist_failed"] = True
     meta["story_count"] = len(daily)

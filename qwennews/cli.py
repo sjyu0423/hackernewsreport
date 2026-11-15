@@ -135,6 +135,55 @@ def _build_parser() -> argparse.ArgumentParser:
         default=500,
         help="Maximum recent articles to sync (default: 500)",
     )
+
+    hourly_parser = sub.add_parser(
+        "run-hourly",
+        help="Orchestrate collect → sync → analyze → hourly report",
+    )
+    hourly_parser.add_argument(
+        "--skip-collect",
+        action="store_true",
+        help="Skip the collection stage (use existing DB rows)",
+    )
+    hourly_parser.add_argument(
+        "--skip-analyze",
+        action="store_true",
+        help="Skip analysis (use cached analyses only)",
+    )
+    hourly_parser.add_argument(
+        "--max-analyze",
+        type=int,
+        default=None,
+        help="Cap fresh/uncached analyses this cycle",
+    )
+    hourly_parser.add_argument(
+        "--notify",
+        action="store_true",
+        help="Send a macOS notification on successful publication",
+    )
+    hourly_parser.add_argument(
+        "--no-notify",
+        action="store_true",
+        help="Suppress macOS notification even if enabled in config",
+    )
+    hourly_parser.add_argument(
+        "--as-of",
+        default=None,
+        help="UTC as-of timestamp for deterministic runs (ISO-8601)",
+    )
+
+    daily_parser = sub.add_parser(
+        "run-daily",
+        help="Orchestrate collect → sync → analyze → daily briefing",
+    )
+    daily_parser.add_argument("--skip-collect", action="store_true")
+    daily_parser.add_argument("--skip-analyze", action="store_true")
+    daily_parser.add_argument("--max-analyze", type=int, default=None)
+    daily_parser.add_argument("--notify", action="store_true")
+    daily_parser.add_argument("--no-notify", action="store_true")
+    daily_parser.add_argument("--as-of", default=None)
+
+    sub.add_parser("status", help="Show orchestration status, locks, and watermarks")
     return parser
 
 
@@ -348,6 +397,80 @@ def cmd_sync_stories(store: ArticleStore, args: argparse.Namespace) -> int:
     return 0
 
 
+def _notify_flag(args: argparse.Namespace) -> bool | None:
+    if getattr(args, "no_notify", False):
+        return False
+    if getattr(args, "notify", False):
+        return True
+    return None
+
+
+def _parse_as_of(raw: str | None):
+    from datetime import datetime
+
+    from qwennews.models import ensure_utc
+
+    if not raw:
+        return None
+    return ensure_utc(datetime.fromisoformat(raw.replace("Z", "+00:00")))
+
+
+def cmd_run_mode(store: ArticleStore, args: argparse.Namespace, *, mode: str) -> int:
+    from qwennews.orchestrate import run_orchestration
+
+    config = load_config()
+    store.init_db()
+    try:
+        as_of = _parse_as_of(getattr(args, "as_of", None))
+    except ValueError:
+        print(f"Invalid --as-of timestamp: {args.as_of}", file=sys.stderr)
+        return 2
+
+    print(f"Starting {mode} orchestration…")
+    result = run_orchestration(
+        mode,
+        config=config,
+        store=store,
+        as_of=as_of,
+        skip_collect=bool(getattr(args, "skip_collect", False)),
+        skip_analyze=bool(getattr(args, "skip_analyze", False)),
+        notify=_notify_flag(args),
+        max_analyze=getattr(args, "max_analyze", None),
+    )
+    print()
+    print(f"Outcome: {result.outcome}")
+    print(f"  ok:                 {result.ok}")
+    print(f"  empty_cycle:        {result.empty_cycle}")
+    print(f"  watermark_advanced: {result.watermark_advanced}")
+    print(f"  report_path:        {result.report_path or '(none)'}")
+    print(f"  elapsed_seconds:    {result.elapsed_seconds}")
+    print(f"  counts:             {result.counts}")
+    for stage in result.stages:
+        flag = "ok" if stage.ok else "FAIL"
+        print(f"  stage[{stage.name}]: {flag} ({stage.elapsed_seconds}s)")
+        if stage.error:
+            print(f"    error: {stage.error}")
+    if result.error:
+        print(f"  error: {result.error}", file=sys.stderr)
+    if result.outcome == "lock_busy":
+        return 3
+    return 0 if result.ok else 1
+
+
+def cmd_status(store: ArticleStore) -> int:
+    import json
+
+    from qwennews.ollama_health import check_ollama
+    from qwennews.orchestrate import orchestration_status
+
+    config = load_config()
+    store.init_db()
+    data = orchestration_status(store, config)
+    data["ollama"] = check_ollama(config).to_dict()
+    print(json.dumps(data, indent=2, default=str))
+    return 0 if data["ollama"].get("ok") else 0  # status always informational
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = _build_parser()
     args = parser.parse_args(list(argv) if argv is not None else None)
@@ -375,6 +498,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         return cmd_report(store, args)
     if args.command == "sync-stories":
         return cmd_sync_stories(store, args)
+    if args.command == "run-hourly":
+        return cmd_run_mode(store, args, mode="hourly")
+    if args.command == "run-daily":
+        return cmd_run_mode(store, args, mode="daily")
+    if args.command == "status":
+        return cmd_status(store)
 
     parser.error(f"Unknown command: {args.command}")
     return 2

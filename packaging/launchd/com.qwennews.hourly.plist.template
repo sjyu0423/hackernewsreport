@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  TEMPLATE ONLY — do not load this file directly.
+  Generate a user-specific plist with absolute paths:
+
+    python scripts/generate_launchagent.py
+
+  Placeholders (filled by the generator; never commit resolved developer paths):
+    __PYTHON__          absolute path to the venv/system Python
+    __PROJECT_ROOT__    absolute path to the QwenNews repo checkout
+    __LOG_DIR__         absolute path for stdout/stderr logs
+    __HOME__            active user home directory
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.qwennews.hourly</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>__PYTHON__</string>
+    <string>-m</string>
+    <string>qwennews</string>
+    <string>run-hourly</string>
+  </array>
+  <key>WorkingDirectory</key>
+  <string>__PROJECT_ROOT__</string>
+  <key>StartInterval</key>
+  <integer>3600</integer>
+  <key>ThrottleInterval</key>
+  <integer>1800</integer>
+  <key>RunAtLoad</key>
+  <false/>
+  <key>KeepAlive</key>
+  <false/>
+  <key>ProcessType</key>
+  <string>Background</string>
+  <key>Nice</key>
+  <integer>5</integer>
+  <key>StandardOutPath</key>
+  <string>__LOG_DIR__/hourly.stdout.log</string>
+  <key>StandardErrorPath</key>
+  <string>__LOG_DIR__/hourly.stderr.log</string>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/usr/bin:/bin:/usr/sbin:/sbin</string>
+    <key>HOME</key>
+    <string>__HOME__</string>
+    <key>QWENNEWS_PROJECT_ROOT</key>
+    <string>__PROJECT_ROOT__</string>
+  </dict>
+</dict>
+</plist>

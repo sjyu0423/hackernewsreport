@@ -1,4 +1,4 @@
-# QwenNews Architecture (M0 + M1)
+# QwenNews Architecture (M0–M3)
 
 ## Goals
 
@@ -24,7 +24,15 @@ M2 adds durable story memory and delta reporting:
 12. Rank with category priorities + capped HN signal + diversity limits.
 13. Emit hourly deltas and daily digests with independent watermarks.
 
-Background scheduling, notifications, embedding-based clustering, and a dashboard remain deferred.
+M3 adds Mac mini automation:
+
+14. Orchestrate `collect → sync → analyze → report` via `run-hourly` / `run-daily`.
+15. Mode-specific story report state + crash-safe watermarks (schema v4).
+16. Single-instance locking so hourly and daily never run Qwen concurrently.
+17. Optional LaunchAgent template (generate/validate only; install is opt-in).
+18. Optional macOS notifications that never invalidate persisted reports.
+
+Dashboard, cloud inference, fine-tuning, and embedding-based clustering remain deferred.
 
 ## Package layout
 
@@ -33,48 +41,64 @@ Background scheduling, notifications, embedding-based clustering, and a dashboar
 | `qwennews.config` | Env-based configuration and verified source endpoint registry |
 | `qwennews.models` | Typed domain objects (`Article`, run stats, extraction status) |
 | `qwennews.urls` | Canonicalization, tracking-param stripping, SSRF checks |
-| `qwennews.http_client` | Shared HTTP client, size limits, safe redirects |
+| `qwennews.http_client` | Shared HTTP client, size limits, safe redirects, bounded retries |
 | `qwennews.robots` | Cached robots.txt decisions |
 | `qwennews.extract` | HTML → article text extraction |
 | `qwennews.sources.*` | Source adapters (HN Firebase API, RSS/Atom) |
-| `qwennews.storage` | SQLite schema + idempotent upserts |
+| `qwennews.storage` | SQLite schema + idempotent upserts (schema v4) |
 | `qwennews.collect` | End-to-end collection orchestration |
 | `qwennews.ollama_client` | Local Ollama `/api/chat` adapter + metrics |
 | `qwennews.analysis_schema` | Pydantic analysis models + JSON schema |
-| `qwennews.analyze` | Prompting, validation, cache-aware analysis |
+| `qwennews.analyze` | Prompting, validation, cache-aware analysis (concurrency=1) |
 | `qwennews.ranking` | M2 deterministic ranking + diversity |
 | `qwennews.similarity` | Headline/entity/content similarity helpers |
 | `qwennews.story_memory` | Story linking + update classification |
 | `qwennews.report` | Ondemand / hourly / daily Markdown reports |
-| `qwennews.cli` | `init-db`, `collect`, `recent`, `stats`, `analyze`, `report`, `sync-stories` |
+| `qwennews.orchestrate` | M3 collect→sync→analyze→report pipeline |
+| `qwennews.locking` | Advisory single-instance file lock |
+| `qwennews.notify` | Optional macOS `osascript` notifications |
+| `qwennews.launchd` | LaunchAgent plist render + validate |
+| `qwennews.cli` | CLI including `run-hourly`, `run-daily`, `status` |
 
 ## Data model
 
 - **articles**: one row per canonical URL (stable SHA-256-based id).
 - **article_sources**: many-to-many sightings so the same story can appear on HN and an RSS feed without duplicate article rows.
-- **collection_runs** / **collection_run_sources**: run history for later hourly delta reports.
+- **collection_runs** / **collection_run_sources**: run history.
 - **article_analyses**: cached structured analyses keyed by article + content hash + model + config version.
-- **reports**: persisted on-demand Markdown briefings.
+- **stories** / **story_articles** / **story_events**: durable story memory.
+- **reports**: persisted Markdown briefings (`mode`, `as_of`, `window_start`, `status`).
+- **report_watermarks**: per-mode publication watermarks.
+- **story_report_state**: per-mode `last_reported_at` (hourly vs daily independent).
+- **orchestration_runs**: per-cycle timing, counts, errors, outcomes.
 
-Timestamps are stored as UTC ISO-8601 strings.
+Timestamps are stored as UTC ISO-8601 strings. Existing databases migrate in place (schema version 5 adds
+`story_processing_state` and `article_processing_state` for backlog-safe hourly drains).
 
-### Ranking (M1)
+### Ranking (M2)
 
 ```
-rank = 0.45 * relevance + 0.40 * significance + 0.15 * hn_attention
+rank = 0.35*significance + 0.25*relevance + 0.25*category_priority
+     + 0.10*ai_signal + 0.05*hn_attention_capped
 ```
 
-`hn_attention` is a clamped log-scaled HN score in `[1,5]` (neutral 2.5 if absent). Popularity is never treated as truth.
+Popularity is never treated as truth. HN score-only changes are UNCHANGED.
 
-## Failure policy
+## Orchestration failure policy
 
-- A failing source records an error and is skipped; other sources continue.
-- Extraction failures preserve title/metadata/URL.
-- Unsafe destinations and private redirect targets are rejected.
-- robots.txt / HTTP 401·403·429·451 are treated as blocked, not crashes.
+| Condition | Outcome | Watermark |
+| --- | --- | --- |
+| All sources fail, 0 articles | `collect_failed` | not advanced |
+| Ollama down / model missing | `ollama_unavailable` | not advanced |
+| All analyses fail | `analyze_failed` | not advanced |
+| Partial analysis failures | continue if any succeeded | normal |
+| Persist failure | `report_persist_failed` | not advanced |
+| Truly nothing new / backlog drained | `empty_success` | advanced |
+| Analyzed but not reportable | `no_significant_updates` | advanced when drained |
+| Cap left pending work | `backlog_remaining` | **not** advanced |
+| Same daily window again | `duplicate_window_skipped` | unchanged |
+| Concurrent run | `lock_busy` | n/a |
 
 ## Extension points (later milestones)
 
-- M1: scheduling + hourly delta reports
-- M2: semantic dedupe / topic tracking
-- M3+: local Qwen ranking, summarization, daily briefing, dashboard
+- M4+: richer daily LaunchAgent, delivery channels, operator dashboard, evaluation harness upgrades.

@@ -307,7 +307,9 @@ def analyze_articles(
         stats.elapsed_seconds = round(time.perf_counter() - started, 3)
         return stats
 
-    if article_ids:
+    if article_ids is not None:
+        # Explicit list (including empty): analyze only those ids — never fall back
+        # to "all recent", so unchanged hourly cycles can request zero inferences.
         articles = []
         for aid in article_ids:
             row = store.get_article(aid)

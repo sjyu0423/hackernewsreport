@@ -155,6 +155,64 @@ CREATE TABLE IF NOT EXISTS report_watermarks (
 CREATE INDEX IF NOT EXISTS idx_stories_last_seen ON stories(last_seen_at);
 CREATE INDEX IF NOT EXISTS idx_story_articles_article ON story_articles(article_id);
 CREATE INDEX IF NOT EXISTS idx_story_events_story ON story_events(story_id, created_at);
+
+CREATE TABLE IF NOT EXISTS story_report_state (
+    story_id TEXT NOT NULL,
+    mode TEXT NOT NULL,
+    last_reported_at TEXT NOT NULL,
+    last_report_id INTEGER,
+    PRIMARY KEY (story_id, mode),
+    FOREIGN KEY (story_id) REFERENCES stories(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS orchestration_runs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    mode TEXT NOT NULL,
+    status TEXT NOT NULL,
+    started_at TEXT NOT NULL,
+    cutoff_at TEXT,
+    finished_at TEXT,
+    outcome TEXT,
+    stages_json TEXT,
+    counts_json TEXT,
+    error TEXT,
+    report_path TEXT,
+    watermark_advanced INTEGER NOT NULL DEFAULT 0,
+    empty_cycle INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS idx_orchestration_runs_mode
+    ON orchestration_runs(mode, started_at DESC);
+
+-- M3.1: durable per-story cycle processing (report readiness)
+CREATE TABLE IF NOT EXISTS story_processing_state (
+    story_id TEXT NOT NULL,
+    mode TEXT NOT NULL,
+    status TEXT NOT NULL,
+    attempts INTEGER NOT NULL DEFAULT 0,
+    last_error TEXT,
+    updated_at TEXT NOT NULL,
+    PRIMARY KEY (story_id, mode),
+    FOREIGN KEY (story_id) REFERENCES stories(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_story_processing_status
+    ON story_processing_state(mode, status);
+
+-- M3.1: per-article analysis queue (max_analyze caps must not discard work)
+CREATE TABLE IF NOT EXISTS article_processing_state (
+    article_id TEXT NOT NULL,
+    mode TEXT NOT NULL,
+    status TEXT NOT NULL,
+    attempts INTEGER NOT NULL DEFAULT 0,
+    last_error TEXT,
+    updated_at TEXT NOT NULL,
+    PRIMARY KEY (article_id, mode),
+    FOREIGN KEY (article_id) REFERENCES articles(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_article_processing_status
+    ON article_processing_state(mode, status);
 """
 
 
@@ -187,7 +245,7 @@ class ArticleStore:
             conn.execute(
                 "INSERT INTO schema_meta(key, value) VALUES(?, ?) "
                 "ON CONFLICT(key) DO UPDATE SET value=excluded.value",
-                ("schema_version", "3"),
+                ("schema_version", "5"),
             )
             conn.commit()
         logger.info("Initialized database at %s", self.db_path)
@@ -822,7 +880,21 @@ class ArticleStore:
             )
             conn.commit()
 
-    def mark_story_reported(self, story_id: str, reported_at: str) -> None:
+    def mark_story_reported(
+        self,
+        story_id: str,
+        reported_at: str,
+        *,
+        mode: str | None = None,
+        report_id: int | None = None,
+    ) -> None:
+        """
+        Record that a story was included in a published report.
+
+        M3: mode-specific state in story_report_state. Legacy stories.last_reported_at
+        is still updated for backward compatibility but must not be used to suppress
+        the other mode.
+        """
         with self._connect() as conn:
             conn.execute(
                 """
@@ -831,7 +903,140 @@ class ArticleStore:
                 """,
                 (reported_at, reported_at, story_id),
             )
+            if mode:
+                conn.execute(
+                    """
+                    INSERT INTO story_report_state (
+                        story_id, mode, last_reported_at, last_report_id
+                    ) VALUES (?, ?, ?, ?)
+                    ON CONFLICT(story_id, mode) DO UPDATE SET
+                        last_reported_at=excluded.last_reported_at,
+                        last_report_id=excluded.last_report_id
+                    """,
+                    (story_id, mode, reported_at, report_id),
+                )
             conn.commit()
+
+    def get_story_reported_at(self, story_id: str, mode: str) -> str | None:
+        with self._connect() as conn:
+            row = conn.execute(
+                """
+                SELECT last_reported_at FROM story_report_state
+                WHERE story_id = ? AND mode = ?
+                """,
+                (story_id, mode),
+            ).fetchone()
+            return str(row["last_reported_at"]) if row else None
+
+    def start_orchestration_run(
+        self,
+        *,
+        mode: str,
+        cutoff_at: str | None = None,
+    ) -> int:
+        with self._connect() as conn:
+            cur = conn.execute(
+                """
+                INSERT INTO orchestration_runs (
+                    mode, status, started_at, cutoff_at, outcome
+                ) VALUES (?, ?, ?, ?, ?)
+                """,
+                (mode, "running", _dt_to_iso(utc_now()), cutoff_at, None),
+            )
+            conn.commit()
+            return int(cur.lastrowid)
+
+    def finish_orchestration_run(
+        self,
+        run_id: int,
+        *,
+        status: str,
+        outcome: str,
+        stages: dict[str, Any] | None = None,
+        counts: dict[str, Any] | None = None,
+        error: str | None = None,
+        report_path: str | None = None,
+        watermark_advanced: bool = False,
+        empty_cycle: bool = False,
+    ) -> None:
+        with self._connect() as conn:
+            conn.execute(
+                """
+                UPDATE orchestration_runs SET
+                    status = ?,
+                    finished_at = ?,
+                    outcome = ?,
+                    stages_json = ?,
+                    counts_json = ?,
+                    error = ?,
+                    report_path = ?,
+                    watermark_advanced = ?,
+                    empty_cycle = ?
+                WHERE id = ?
+                """,
+                (
+                    status,
+                    _dt_to_iso(utc_now()),
+                    outcome,
+                    json.dumps(stages or {}),
+                    json.dumps(counts or {}),
+                    error,
+                    report_path,
+                    1 if watermark_advanced else 0,
+                    1 if empty_cycle else 0,
+                    run_id,
+                ),
+            )
+            conn.commit()
+
+    def recent_orchestration_runs(
+        self, *, mode: str | None = None, limit: int = 10
+    ) -> list[dict[str, Any]]:
+        with self._connect() as conn:
+            if mode:
+                rows = conn.execute(
+                    """
+                    SELECT * FROM orchestration_runs
+                    WHERE mode = ?
+                    ORDER BY id DESC LIMIT ?
+                    """,
+                    (mode, limit),
+                ).fetchall()
+            else:
+                rows = conn.execute(
+                    """
+                    SELECT * FROM orchestration_runs
+                    ORDER BY id DESC LIMIT ?
+                    """,
+                    (limit,),
+                ).fetchall()
+            return [dict(r) for r in rows]
+
+    def has_completed_report_for_window(
+        self, *, mode: str, as_of: str, window_start: str | None
+    ) -> bool:
+        """Detect duplicate same-window publications."""
+        with self._connect() as conn:
+            if window_start:
+                row = conn.execute(
+                    """
+                    SELECT id FROM reports
+                    WHERE mode = ? AND as_of = ? AND window_start = ?
+                      AND status = 'completed'
+                    LIMIT 1
+                    """,
+                    (mode, as_of, window_start),
+                ).fetchone()
+            else:
+                row = conn.execute(
+                    """
+                    SELECT id FROM reports
+                    WHERE mode = ? AND as_of = ? AND status = 'completed'
+                    LIMIT 1
+                    """,
+                    (mode, as_of),
+                ).fetchone()
+            return row is not None
 
     def record_story_event(self, decision: Any) -> None:
         with self._connect() as conn:
@@ -900,3 +1105,170 @@ class ArticleStore:
                 (mode, watermark_at, last_report_id, now),
             )
             conn.commit()
+
+    # --- M3.1 story processing backlog ---------------------------------
+
+    def upsert_story_processing(
+        self,
+        story_id: str,
+        mode: str,
+        status: str,
+        *,
+        error: str | None = None,
+        bump_attempts: bool = False,
+    ) -> None:
+        now = _dt_to_iso(utc_now())
+        with self._connect() as conn:
+            existing = conn.execute(
+                """
+                SELECT attempts FROM story_processing_state
+                WHERE story_id = ? AND mode = ?
+                """,
+                (story_id, mode),
+            ).fetchone()
+            attempts = int(existing["attempts"]) if existing else 0
+            if bump_attempts:
+                attempts += 1
+            conn.execute(
+                """
+                INSERT INTO story_processing_state (
+                    story_id, mode, status, attempts, last_error, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?)
+                ON CONFLICT(story_id, mode) DO UPDATE SET
+                    status=excluded.status,
+                    attempts=excluded.attempts,
+                    last_error=excluded.last_error,
+                    updated_at=excluded.updated_at
+                """,
+                (story_id, mode, status, attempts, error, now),
+            )
+            conn.commit()
+
+    def get_story_processing(self, story_id: str, mode: str) -> dict[str, Any] | None:
+        with self._connect() as conn:
+            row = conn.execute(
+                """
+                SELECT * FROM story_processing_state
+                WHERE story_id = ? AND mode = ?
+                """,
+                (story_id, mode),
+            ).fetchone()
+            return dict(row) if row else None
+
+    def list_story_processing(
+        self, mode: str, *, statuses: list[str] | None = None, limit: int = 500
+    ) -> list[dict[str, Any]]:
+        with self._connect() as conn:
+            if statuses:
+                placeholders = ",".join("?" for _ in statuses)
+                rows = conn.execute(
+                    f"""
+                    SELECT * FROM story_processing_state
+                    WHERE mode = ? AND status IN ({placeholders})
+                    ORDER BY updated_at ASC
+                    LIMIT ?
+                    """,
+                    (mode, *statuses, limit),
+                ).fetchall()
+            else:
+                rows = conn.execute(
+                    """
+                    SELECT * FROM story_processing_state
+                    WHERE mode = ?
+                    ORDER BY updated_at ASC
+                    LIMIT ?
+                    """,
+                    (mode, limit),
+                ).fetchall()
+            return [dict(r) for r in rows]
+
+    def count_story_processing(self, mode: str, statuses: list[str]) -> int:
+        if not statuses:
+            return 0
+        with self._connect() as conn:
+            placeholders = ",".join("?" for _ in statuses)
+            row = conn.execute(
+                f"""
+                SELECT COUNT(*) AS n FROM story_processing_state
+                WHERE mode = ? AND status IN ({placeholders})
+                """,
+                (mode, *statuses),
+            ).fetchone()
+            return int(row["n"]) if row else 0
+
+    def upsert_article_processing(
+        self,
+        article_id: str,
+        mode: str,
+        status: str,
+        *,
+        error: str | None = None,
+        bump_attempts: bool = False,
+    ) -> None:
+        now = _dt_to_iso(utc_now())
+        with self._connect() as conn:
+            existing = conn.execute(
+                """
+                SELECT attempts FROM article_processing_state
+                WHERE article_id = ? AND mode = ?
+                """,
+                (article_id, mode),
+            ).fetchone()
+            attempts = int(existing["attempts"]) if existing else 0
+            if bump_attempts:
+                attempts += 1
+            conn.execute(
+                """
+                INSERT INTO article_processing_state (
+                    article_id, mode, status, attempts, last_error, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?)
+                ON CONFLICT(article_id, mode) DO UPDATE SET
+                    status=excluded.status,
+                    attempts=excluded.attempts,
+                    last_error=excluded.last_error,
+                    updated_at=excluded.updated_at
+                """,
+                (article_id, mode, status, attempts, error, now),
+            )
+            conn.commit()
+
+    def list_article_processing(
+        self, mode: str, *, statuses: list[str] | None = None, limit: int = 500
+    ) -> list[dict[str, Any]]:
+        with self._connect() as conn:
+            if statuses:
+                placeholders = ",".join("?" for _ in statuses)
+                rows = conn.execute(
+                    f"""
+                    SELECT * FROM article_processing_state
+                    WHERE mode = ? AND status IN ({placeholders})
+                    ORDER BY updated_at ASC
+                    LIMIT ?
+                    """,
+                    (mode, *statuses, limit),
+                ).fetchall()
+            else:
+                rows = conn.execute(
+                    """
+                    SELECT * FROM article_processing_state
+                    WHERE mode = ?
+                    ORDER BY updated_at ASC
+                    LIMIT ?
+                    """,
+                    (mode, limit),
+                ).fetchall()
+            return [dict(r) for r in rows]
+
+    def count_article_processing(self, mode: str, statuses: list[str]) -> int:
+        if not statuses:
+            return 0
+        with self._connect() as conn:
+            placeholders = ",".join("?" for _ in statuses)
+            row = conn.execute(
+                f"""
+                SELECT COUNT(*) AS n FROM article_processing_state
+                WHERE mode = ? AND status IN ({placeholders})
+                """,
+                (mode, *statuses),
+            ).fetchone()
+            return int(row["n"]) if row else 0

@@ -64,11 +64,45 @@ def safe_get(
     max_redirects: int = 5,
     allowed_content_types: Iterable[str] | None = None,
     resolve_dns: bool = True,
+    max_retries: int = 2,
 ) -> httpx.Response:
     """
     GET a URL with SSRF validation on every hop, response size capping,
     and optional content-type filtering.
+
+    Transient network failures retry up to ``max_retries`` additional attempts
+    (bounded; never unbounded).
     """
+    retries = max(0, min(int(max_retries), 5))
+    last_exc: Exception | None = None
+    for attempt in range(retries + 1):
+        try:
+            return _safe_get_once(
+                client,
+                url,
+                max_bytes=max_bytes,
+                max_redirects=max_redirects,
+                allowed_content_types=allowed_content_types,
+                resolve_dns=resolve_dns,
+            )
+        except (httpx.TransportError, httpx.TimeoutException) as exc:
+            last_exc = exc
+            if attempt >= retries:
+                raise
+            logger.info("Retrying GET %s after %s (attempt %s)", url, exc, attempt + 1)
+    assert last_exc is not None
+    raise last_exc
+
+
+def _safe_get_once(
+    client: httpx.Client,
+    url: str,
+    *,
+    max_bytes: int,
+    max_redirects: int = 5,
+    allowed_content_types: Iterable[str] | None = None,
+    resolve_dns: bool = True,
+) -> httpx.Response:
     allowed = tuple(allowed_content_types) if allowed_content_types else TEXT_CONTENT_TYPES
     current = validate_public_http_url(url, resolve_dns=resolve_dns)
     seen: set[str] = set()

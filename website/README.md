@@ -7,8 +7,10 @@ npm install
 npm run dev
 npm run typecheck
 npm run lint
+npm test
 npm run build
 npm run verify:export
 ```
 
-See [../docs/website/w0.md](../docs/website/w0.md) for architecture, GitHub Pages notes, and limitations.
+- W0 foundation: [../docs/website/w0.md](../docs/website/w0.md)
+- W1 homepage + demo snapshot: [../docs/website/w1.md](../docs/website/w1.md)

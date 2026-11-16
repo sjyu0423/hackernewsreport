@@ -1,10 +1,12 @@
 export const siteConfig = {
   name: "QwenNews",
-  tagline: "Your own AI news analyst, running locally.",
+  tagline: "Your own AI news analyst.",
+  supportLine: "Running locally. Reading continuously. Reporting what matters.",
   description:
     "QwenNews is a local AI news reporting system: Hacker News and AI/tech RSS ingestion, SQLite story memory, Qwen3 4B analysis via Ollama, and hourly/daily briefings on macOS — with a separate public project website.",
   shortDescription:
     "Local AI news reporting with Qwen3 4B, Ollama, SQLite, and macOS automation. Public project site — not the private live dashboard.",
+  githubUrl: "https://github.com/sjyu0423/hackernewsreport",
 } as const;
 
 export type NavItem = {
@@ -74,6 +76,28 @@ export const stackRoles = [
   },
 ] as const;
 
-/** Safe public fixture path under /content/fixtures — never live DB. */
+export const homePipeline = [
+  {
+    step: "01",
+    title: "Collect",
+    body: "Python gathers stories from five public sources and normalizes them.",
+  },
+  {
+    step: "02",
+    title: "Remember",
+    body: "SQLite keeps story history and prior reports so updates can be recognized.",
+  },
+  {
+    step: "03",
+    title: "Analyze",
+    body: "Qwen3 4B runs locally through Ollama and returns structured summaries.",
+  },
+  {
+    step: "04",
+    title: "Report",
+    body: "Hourly and daily briefings highlight developments that matter.",
+  },
+] as const;
+
 export const publicFixtureNote =
-  "Demo content will use explicitly selected, sanitized static JSON fixtures. This site never connects to Ollama, FastAPI, or local SQLite at runtime.";
+  "Demo content uses an explicitly selected, sanitized static JSON snapshot of real local analyses. This site never connects to Ollama, FastAPI, or local SQLite at runtime.";

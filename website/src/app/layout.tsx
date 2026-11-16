@@ -39,12 +39,12 @@ export const metadata: Metadata = {
     type: "website",
     siteName: siteConfig.name,
     title: `${siteConfig.name} — ${siteConfig.tagline}`,
-    description: siteConfig.shortDescription,
+    description: `${siteConfig.supportLine} ${siteConfig.shortDescription}`,
   },
   twitter: {
     card: "summary_large_image",
     title: `${siteConfig.name} — ${siteConfig.tagline}`,
-    description: siteConfig.shortDescription,
+    description: `${siteConfig.supportLine} ${siteConfig.shortDescription}`,
   },
   robots: {
     index: true,

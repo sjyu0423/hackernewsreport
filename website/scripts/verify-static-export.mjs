@@ -85,5 +85,26 @@ const sampleHtml = readFileSync(join(outDir, "index.html"), "utf8");
 if (!sampleHtml.includes("QwenNews")) {
   fail("index.html missing expected brand text");
 }
+if (!sampleHtml.includes("Your own AI news analyst")) {
+  fail("index.html missing homepage hero copy");
+}
+
+const demoHtml = readFileSync(join(outDir, "demo/index.html"), "utf8");
+if (!demoHtml.includes("Fixed snapshot") && !demoHtml.includes("fixed snapshot")) {
+  // Client component text may live in JS chunks; check bundled JS too.
+  const jsMentionsSnapshot = files.some((file) => {
+    if (!file.endsWith(".js")) return false;
+    const text = readFileSync(file, "utf8");
+    return text.includes("Fixed snapshot") || text.includes("w1-2026-11-16");
+  });
+  if (!jsMentionsSnapshot) {
+    fail("demo export missing snapshot disclosure markers");
+  }
+}
+
+const fixturePath = join(root, "content/fixtures/demo-briefing.snapshot.json");
+if (!existsSync(fixturePath)) {
+  fail("missing curated demo snapshot fixture");
+}
 
 console.log(`verify-static-export: ok (${files.length} files, ${requiredRoutes.length} routes)`);

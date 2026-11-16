@@ -1,115 +1,151 @@
 import Link from "next/link";
-import { publicFixtureNote, siteConfig, stackRoles } from "@/lib/site";
-
-const capabilities = [
-  "Hacker News and AI/tech RSS ingestion into a shared article model",
-  "SQLite story history with conservative near-duplicate linking",
-  "Local Qwen3 4B analysis through Ollama with structured summaries",
-  "Significance scoring, ranking, and hourly/daily Markdown reports",
-  "Optional macOS LaunchAgent scheduling and a private localhost dashboard",
-] as const;
+import { BriefingPreview } from "@/components/BriefingPreview";
+import {
+  demoSnapshot,
+  featuredStories,
+} from "@/lib/demo";
+import { engineeringEvidence } from "@/lib/evidence";
+import {
+  homePipeline,
+  publicFixtureNote,
+  siteConfig,
+} from "@/lib/site";
 
 export default function HomePage() {
+  const previewStories = featuredStories(3);
+
   return (
     <div className="shell pb-20">
-      <section className="fade-rise grid gap-10 border-b border-line/70 pb-14 pt-14 lg:grid-cols-[minmax(0,1.35fr)_minmax(18rem,0.85fr)] lg:items-end lg:pb-16 lg:pt-20">
+      <section className="fade-rise grid gap-10 border-b border-line/70 pb-14 pt-14 lg:grid-cols-[minmax(0,1.15fr)_minmax(20rem,0.95fr)] lg:items-start lg:gap-12 lg:pb-16 lg:pt-20">
         <div className="space-y-6">
           <p className="eyebrow">Local AI news reporting</p>
-          <h1 className="max-w-3xl text-5xl leading-[1.05] sm:text-6xl lg:text-[4.25rem]">
-            {siteConfig.name}
+          <h1 className="max-w-3xl text-5xl leading-[1.05] sm:text-6xl lg:text-[4.35rem]">
+            {siteConfig.tagline}
           </h1>
           <p className="max-w-2xl font-display text-2xl leading-snug text-paper/90 sm:text-3xl">
-            {siteConfig.tagline}
+            {siteConfig.supportLine}
           </p>
           <p className="lede">
-            A Mac-local reporting system that collects public tech/AI news,
-            remembers developing stories in SQLite, and drafts briefings with a
-            pretrained Qwen3 4B model — without cloud inference or model
-            fine-tuning.
+            Qwen3 4B runs locally through Ollama. Python collects and processes
+            news from five sources. SQLite tracks story history and prior
+            reports. Hourly and daily briefings highlight important
+            developments.
           </p>
-          <div className="flex flex-wrap gap-3 pt-2">
+          <p className="max-w-2xl text-sm leading-relaxed text-muted">
+            This public website is a static demonstration — not the private live
+            dashboard. {publicFixtureNote}
+          </p>
+          <div className="flex flex-wrap gap-3 pt-1">
             <Link href="/demo/" className="btn-primary no-underline">
-              Explore the demo
+              Try the interactive demo
             </Link>
             <Link href="/how-it-works/" className="btn-secondary no-underline">
               How it works
             </Link>
+            <a
+              href={siteConfig.githubUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn-secondary no-underline"
+            >
+              GitHub
+            </a>
           </div>
         </div>
 
-        <aside className="panel fade-rise-delay space-y-4 p-5 sm:p-6">
-          <p className="eyebrow">Site scope</p>
-          <p className="text-sm leading-relaxed text-muted">
-            This is the <strong className="font-medium text-paper">public</strong>{" "}
-            static project website. It is not the private Next.js dashboard and
-            does not talk to your local FastAPI, Ollama, or SQLite databases.
-          </p>
-          <p className="text-sm leading-relaxed text-muted">{publicFixtureNote}</p>
-        </aside>
+        <BriefingPreview
+          stories={previewStories}
+          snapshotId={demoSnapshot.snapshot_id}
+          recordedAt={demoSnapshot.recorded_at}
+        />
       </section>
 
-      <section className="fade-rise-delay grid gap-8 py-14 lg:grid-cols-[0.9fr_1.1fr]">
+      <section className="grid gap-8 border-b border-line/70 py-14 lg:grid-cols-[0.85fr_1.15fr]">
         <div>
-          <h2 className="text-3xl sm:text-4xl">What exists today</h2>
+          <p className="eyebrow">How it works</p>
+          <h2 className="mt-3 text-3xl sm:text-4xl">A local reporting loop</h2>
           <p className="mt-3 max-w-md text-muted">
-            Verified from the repository milestones M0–M4.2. No invented
-            benchmarks or live demo claims.
+            Collect, remember, analyze, report — without cloud inference or
+            model fine-tuning.
           </p>
+          <Link
+            href="/how-it-works/"
+            className="mt-5 inline-flex text-sm no-underline"
+          >
+            Full architecture explanation
+          </Link>
         </div>
-        <ul className="space-y-3">
-          {capabilities.map((item) => (
+        <ol className="grid gap-3 sm:grid-cols-2">
+          {homePipeline.map((item) => (
             <li
-              key={item}
-              className="rounded-xl border border-line/80 bg-ink-elevated/50 px-4 py-3 text-sm leading-relaxed text-paper/90"
-            >
-              {item}
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      <section className="space-y-6 border-t border-line/70 py-14">
-        <div className="max-w-2xl">
-          <h2 className="text-3xl sm:text-4xl">Who does what</h2>
-          <p className="mt-3 text-muted">
-            Clear roles for the model, runtime, storage, orchestration, and
-            scheduler — so reviewers can see the system boundaries.
-          </p>
-        </div>
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {stackRoles.map((item) => (
-            <article
-              key={item.name}
+              key={item.step}
               className="rounded-2xl border border-line/80 bg-ink-elevated/55 p-5"
             >
-              <p className="font-mono text-xs uppercase tracking-[0.14em] text-violet">
-                {item.role}
+              <p className="font-mono text-xs uppercase tracking-[0.16em] text-accent">
+                {item.step}
               </p>
-              <h3 className="mt-2 text-xl">{item.name}</h3>
+              <h3 className="mt-2 text-xl">{item.title}</h3>
+              <p className="mt-2 text-sm leading-relaxed text-muted">
+                {item.body}
+              </p>
+            </li>
+          ))}
+        </ol>
+      </section>
+
+      <section className="grid gap-8 border-b border-line/70 py-14 lg:grid-cols-[0.85fr_1.15fr]">
+        <div>
+          <p className="eyebrow">Engineering evidence</p>
+          <h2 className="mt-3 text-3xl sm:text-4xl">Measured, not invented</h2>
+          <p className="mt-3 max-w-md text-muted">
+            Figures below come from repository milestone notes and the M1 live
+            benchmark JSON. Conditions remain visible on the Engineering page.
+          </p>
+          <Link
+            href="/engineering/"
+            className="mt-5 inline-flex text-sm no-underline"
+          >
+            Benchmark details
+          </Link>
+        </div>
+        <dl className="grid gap-3 sm:grid-cols-2">
+          {engineeringEvidence.map((item) => (
+            <div
+              key={item.label}
+              className="rounded-2xl border border-line/80 bg-ink-elevated/55 p-5"
+            >
+              <dt className="font-mono text-xs uppercase tracking-[0.14em] text-violet">
+                {item.label}
+              </dt>
+              <dd className="mt-2 font-display text-2xl text-paper">
+                {item.value}
+              </dd>
               <p className="mt-2 text-sm leading-relaxed text-muted">
                 {item.detail}
               </p>
-            </article>
+            </div>
           ))}
-        </div>
+        </dl>
       </section>
 
-      <section className="panel grid gap-6 p-6 sm:p-8 lg:grid-cols-[1.2fr_0.8fr] lg:items-center">
+      <section className="panel mt-14 grid gap-6 p-6 sm:p-8 lg:grid-cols-[1.25fr_0.75fr] lg:items-center">
         <div>
-          <h2 className="text-2xl sm:text-3xl">Next on this website</h2>
+          <p className="eyebrow">Featured demo</p>
+          <h2 className="mt-3 text-3xl sm:text-4xl">
+            Explore a recorded briefing
+          </h2>
           <p className="mt-3 max-w-prose text-muted">
-            W0 establishes routing, layout, navigation, and content architecture.
-            Later milestones add an interactive briefing demo, deeper
-            architecture narrative, measured engineering evidence, and optional
-            under-the-hood detail.
+            Filter and expand eight curated stories with original source links.
+            Every card is grounded in a real local analysis — clearly labeled as
+            a fixed snapshot.
           </p>
         </div>
         <div className="flex flex-wrap gap-3">
-          <Link href="/engineering/" className="btn-secondary no-underline">
-            Engineering
+          <Link href="/demo/" className="btn-primary no-underline">
+            Open the demo
           </Link>
           <Link href="/under-the-hood/" className="btn-secondary no-underline">
-            Under the Hood
+            Technical notes
           </Link>
         </div>
       </section>

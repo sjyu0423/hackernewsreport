@@ -1,27 +1,13 @@
 import type { Metadata } from "next";
-import { ComingSoonPanel } from "@/components/ComingSoonPanel";
+import Link from "next/link";
 import { PageHero } from "@/components/PageHero";
+import { engineeringEvidence, evidenceConditions } from "@/lib/evidence";
 
 export const metadata: Metadata = {
   title: "Engineering",
   description:
-    "Engineering evidence and design decisions for QwenNews. W0 reserves the page; measured results will be published only from verified sources.",
+    "Verified engineering evidence for QwenNews: local Qwen3 4B throughput, M1 benchmark wall time, source count, and test suite size.",
 };
-
-const principles = [
-  {
-    title: "No invented numbers",
-    body: "Benchmarks, latency figures, and rankings appear only when measured and cited from repository evaluation artifacts.",
-  },
-  {
-    title: "Honest product claims",
-    body: "The project uses a pretrained Qwen3 4B model through Ollama. It does not claim custom training or fine-tuning.",
-  },
-  {
-    title: "Evidence over polish",
-    body: "Design decisions should show tradeoffs — ranking weights, concurrency limits, watermark safety — not marketing copy.",
-  },
-] as const;
 
 export default function EngineeringPage() {
   return (
@@ -29,32 +15,49 @@ export default function EngineeringPage() {
       <PageHero
         eyebrow="Engineering"
         title="Benchmarks and design decisions"
-        description="This page will host measured evidence and the rationale behind ranking, caching, orchestration, and reliability choices."
+        description="Only repository-verified measurements appear here. No invented latency charts or live counters."
       />
 
-      <div className="grid gap-4 md:grid-cols-3">
-        {principles.map((item) => (
-          <article
-            key={item.title}
+      <dl className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        {engineeringEvidence.map((item) => (
+          <div
+            key={item.label}
             className="rounded-2xl border border-line/80 bg-ink-elevated/55 p-5"
           >
-            <h2 className="text-xl">{item.title}</h2>
-            <p className="mt-2 text-sm leading-relaxed text-muted">{item.body}</p>
-          </article>
+            <dt className="font-mono text-xs uppercase tracking-[0.14em] text-violet">
+              {item.label}
+            </dt>
+            <dd className="mt-2 font-display text-2xl text-paper">
+              {item.value}
+            </dd>
+            <p className="mt-2 text-sm leading-relaxed text-muted">
+              {item.detail}
+            </p>
+          </div>
         ))}
-      </div>
+      </dl>
 
-      <ComingSoonPanel
-        milestone="W3"
-        title="Evidence panels reserved"
-        summary="No benchmark tables or charts are published in W0. Empty states stay explicit until real evaluation outputs are selected for the public site."
-        planned={[
-          "Analysis quality rubric excerpts",
-          "Latency and throughput measurements (when available)",
-          "Ranking and diversity design notes",
-          "Reliability / orchestration outcome glossary",
-        ]}
-      />
+      <section className="panel space-y-4 p-6 sm:p-8">
+        <h2 className="text-2xl sm:text-3xl">Benchmark conditions</h2>
+        <ul className="space-y-2 text-sm leading-relaxed text-muted">
+          {evidenceConditions.map((item) => (
+            <li key={item}>{item}</li>
+          ))}
+        </ul>
+        <p className="text-sm text-muted">
+          Primary sources:{" "}
+          <code className="font-mono text-paper/85">docs/milestones/m1.md</code>
+          ,{" "}
+          <code className="font-mono text-paper/85">
+            data/reports/live_m1_benchmark.json
+          </code>
+          , and local{" "}
+          <code className="font-mono text-paper/85">pytest --collect-only</code>.
+        </p>
+        <Link href="/demo/" className="btn-secondary inline-flex no-underline">
+          See analyses in the demo
+        </Link>
+      </section>
     </div>
   );
 }

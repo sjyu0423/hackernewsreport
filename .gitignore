@@ -35,3 +35,10 @@ dashboard/node_modules/
 dashboard/.next/
 dashboard/out/
 dashboard/coverage/
+
+# Public website (Next.js static site)
+website/node_modules/
+website/.next/
+website/out/
+website/coverage/
+website/.tmp-home/

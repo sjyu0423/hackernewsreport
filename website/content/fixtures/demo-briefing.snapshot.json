@@ -1,0 +1,232 @@
+{
+  "version": 1,
+  "kind": "static_demo_briefing",
+  "generated_for": "public-website",
+  "snapshot_id": "w1-2026-11-16",
+  "recorded_at": "2026-11-16T06:45:00Z",
+  "model_id": "qwen3:4b",
+  "model_quantization": "Q4_K_M",
+  "disclaimer": "Fixed public demo snapshot curated from real local analyses. This website does not call Ollama, FastAPI, or SQLite at runtime.",
+  "selection_notes": [
+    "Manually selected 8 analyzed articles covering all five configured sources (Hacker News, OpenAI, Google DeepMind, Hugging Face, TechCrunch).",
+    "Opaque demo-* ids replace private database article ids.",
+    "Excluded insufficient-evidence / blocked-extraction items and one TechCrunch analysis whose summary centered on personal allegations (kept AI graveyard for TechCrunch coverage).",
+    "OpenAI URL returned HTTP 403 to automated HEAD/GET (bot protection); canonical URL retained from the ingested OpenAI RSS item. Other selected URLs returned HTTP 200."
+  ],
+  "url_verification": {
+    "checked_at": "2026-11-16T06:45:00Z",
+    "results": [
+      {
+        "id": "demo-01",
+        "status": 200
+      },
+      {
+        "id": "demo-02",
+        "status": "403_bot_protection"
+      },
+      {
+        "id": "demo-03",
+        "status": 200
+      },
+      {
+        "id": "demo-04",
+        "status": 200
+      },
+      {
+        "id": "demo-05",
+        "status": 200
+      },
+      {
+        "id": "demo-06",
+        "status": 200
+      },
+      {
+        "id": "demo-07",
+        "status": 200
+      },
+      {
+        "id": "demo-08",
+        "status": 200
+      }
+    ]
+  },
+  "items": [
+    {
+      "id": "demo-01",
+      "headline": "Introducing Gemini 4 Hydrogen",
+      "summary": "Google introduces Gemini 4 Hydrogen, a new model designed for rapid execution in multi-model workflows, developer tasks, and agentic applications. It offers faster performance, improved efficiency, and compatibility with existing Google AI services.",
+      "why_it_matters": "Hydrogen addresses real-world developer needs for speed and efficiency in coding, debugging, and agentic workflows while integrating with Google's ecosystem.",
+      "category": "AI Models",
+      "source_url": "https://deepmind.google/blog/introducing-gemini-4-hydrogen",
+      "source_name": "Google DeepMind",
+      "published_at": "2026-11-12T23:00:50Z",
+      "relevance_score": 4,
+      "significance_score": 3,
+      "evidence_sufficiency": "sufficient",
+      "limitations": "Article mentions 'early testing' results and lacks specific details on long-term performance, real-world adoption metrics, and comparative pricing beyond the stated $1.50 per million input tokens and $7.50 per million output tokens",
+      "key_claims": [
+        "Gemini 4 Hydrogen is a model for rapid execution across diverse agentic workflows, surpassing Gemini 4 Argon on the Artificial Analysis Intelligence Index (51 vs. 50 at default high thinking level)",
+        "Hydrogen delivers 2.5x faster task completion at high default settings and triples Terminal-Bench 4.1 scores (57% vs. 18.2%) compared to Gemini 3.8 Flash",
+        "Hydrogen outperforms competitors in iterative coding, debugging, and enterprise workflows with 12-23% lower token usage",
+        "Hydrogen ranks #5 on Agent Arena for open-ended agentic execution and leads in specific benchmarks like HLE-Diamond (58.8%) and Vals Tax Agent Bench (52.3%)",
+        "Hydrogen enables real-time 3D coding via Geminisland for live interactive app building"
+      ],
+      "model_id": "qwen3:4b",
+      "disclaimer": "Recorded static sample from a local Qwen3 4B analysis. Not live inference."
+    },
+    {
+      "id": "demo-02",
+      "headline": "Introducing ChatGPT Wallet",
+      "summary": "OpenAI introduces ChatGPT Wallet, a payment solution enabling agents to make purchases without accessing users' card details. The wallet requires user approval for each transaction with security checks (e.g., biometrics), preserves existing card rewards and dispute protections, and is initially available to ChatGPT Pro subscribers in the US via partnerships with American Express, Mastercard, and Visa.",
+      "why_it_matters": "ChatGPT Wallet addresses security and privacy concerns in agentic commerce by allowing users to delegate payments securely while maintaining existing payment protections and rewards. This bridges AI agents and traditional payment systems.",
+      "category": "payments",
+      "source_url": "https://openai.com/index/introducing-chatgpt-wallet",
+      "source_name": "OpenAI",
+      "published_at": "2026-11-13T20:00:00Z",
+      "relevance_score": 4,
+      "significance_score": 3,
+      "evidence_sufficiency": "sufficient",
+      "limitations": "Limited availability to ChatGPT Pro users; potential for website/payment systems to block agent purchases; ongoing integration with existing payment infrastructure requires collaboration with banks and networks",
+      "key_claims": [
+        "ChatGPT Wallet enables agents to pay without accessing users' actual card details",
+        "Each purchase requires user approval with security checks (e.g., Face ID/fingerprint)",
+        "Preserves existing card rewards and dispute protections for eligible transactions",
+        "Initially available to ChatGPT Pro subscribers in the US through partnerships with American Express, Mastercard, and Visa"
+      ],
+      "model_id": "qwen3:4b",
+      "disclaimer": "Recorded static sample from a local Qwen3 4B analysis. Not live inference."
+    },
+    {
+      "id": "demo-03",
+      "headline": "Build a Robot Pick-and-Place Simulation with SimReady Assets",
+      "summary": "Walkthrough on building a robot pick-and-place simulation using SimReady Assets in Isaac Sim, including asset validation, scene assembly, and testing steps.",
+      "why_it_matters": "SimReady assets provide standardized simulation properties for robotics workflows, enabling faster development of robot tasks with validated physics and collision behavior.",
+      "category": "robotics",
+      "source_url": "https://huggingface.co/blog/nvidia/simready-assets-robot-pick-and-place",
+      "source_name": "Hugging Face",
+      "published_at": "2026-11-13T23:00:39Z",
+      "relevance_score": 4,
+      "significance_score": 3,
+      "evidence_sufficiency": "partial",
+      "limitations": "Truncated text; missing details on agent code generation, full validation report content, and specific Isaac Sim version requirements beyond 6.2",
+      "key_claims": [
+        "SimReady assets are OpenUSD assets with predefined simulation properties (collisions, mass, joints, joint drives) for specific use cases",
+        "The UR17G arm, Robotiq 2F-140 gripper, and beverage can assets are provided in SimReady Central on Hugging Face",
+        "Asset validation checks joint-drive settings and collision behavior before running pick-and-place tasks",
+        "The pick-and-place simulation requires assembling the robot, defining work surface, starting positions, and controls for the gripper"
+      ],
+      "model_id": "qwen3:4b",
+      "disclaimer": "Recorded static sample from a local Qwen3 4B analysis. Not live inference."
+    },
+    {
+      "id": "demo-04",
+      "headline": "The AI graveyard: a running list of projects and startups that didn’t make it",
+      "summary": "The article details a list of AI projects and startups that have failed or been discontinued, highlighting examples like Character.ai's bankruptcy, OpenAI's failed attempts to unify ChatGPT with other features, Apple's delayed Siri AI, and Ollie's shutdown. It notes that about 42% of AI initiatives are abandoned by corporations, with reasons including funding, technical challenges, competition, and weak user demand.",
+      "why_it_matters": "Provides context on the high failure rate of AI initiatives and lessons for the industry, emphasizing the challenges of scaling, regulatory compliance, and market competition in AI development.",
+      "category": "AI/tech",
+      "source_url": "https://techcrunch.com/2026/11/14/the-ai-graveyard-a-running-list-of-projects-and-startups-that-didnt-make-it",
+      "source_name": "TechCrunch",
+      "published_at": "2026-11-14T22:30:00Z",
+      "relevance_score": 4,
+      "significance_score": 3,
+      "evidence_sufficiency": "sufficient",
+      "limitations": "The article is truncated, so some details about Microsoft’s Recall feature and other potential examples are missing. The article focuses on recent failures but does not provide long-term trends or comparative analysis of success rates across different AI applications.",
+      "key_claims": [
+        "Character.ai filed for bankruptcy after raising $150 million at a $1 billion valuation in 2023 and facing legal and regulatory issues.",
+        "OpenAI rolled back a redesign of ChatGPT that combined multiple features due to user confusion, and discontinued ChatGPT Atlas and Operator.",
+        "Apple delayed Siri AI releases multiple times, leading to a $250 million settlement over marketing claims.",
+        "Ollie shut down citing inability to compete with larger platforms and insufficient capital.",
+        "About 42% of AI initiatives are abandoned by corporations according to S&P Global Market Intelligence."
+      ],
+      "model_id": "qwen3:4b",
+      "disclaimer": "Recorded static sample from a local Qwen3 4B analysis. Not live inference."
+    },
+    {
+      "id": "demo-05",
+      "headline": "'Birdbrain' Is a Misnomer. Crows Make Decisions Faster Than We Can",
+      "summary": "Carrion crows (Lemmy and Iggy) demonstrated faster decision-making than humans and nonhuman primates in a study published in Science, processing visual cues at twice the speed. This challenges historical views of bird intelligence and suggests 'birdbrains' as a pejorative is outdated.",
+      "why_it_matters": "Provides evidence that birds, specifically corvids, have advanced cognitive abilities that surpass human and primate decision-making speeds, potentially reshaping understanding of avian intelligence.",
+      "category": "science",
+      "source_url": "https://www.nytimes.com/2026/11/15/science/birdbrain-crows-birds-research-decision.html",
+      "source_name": "Hacker News",
+      "published_at": "2026-11-15T17:53:31Z",
+      "relevance_score": 4,
+      "significance_score": 4,
+      "evidence_sufficiency": "sufficient",
+      "limitations": "Article mentions the study was published in Science but does not provide specific methodology or sample size details. The article also notes access verification delays without clarifying if the full content is available.",
+      "key_claims": [
+        "Carrion crows can process visual cues at twice the speed of humans and monkeys",
+        "This finding challenges historical misconceptions about bird intelligence",
+        "Corvids exhibit advanced cognitive abilities including self-recognition, problem-solving, and theory of mind"
+      ],
+      "model_id": "qwen3:4b",
+      "disclaimer": "Recorded static sample from a local Qwen3 4B analysis. Not live inference."
+    },
+    {
+      "id": "demo-06",
+      "headline": "Eclipse Mosquitto – An open source MQTT broker",
+      "summary": "Eclipse Mosquitto is an open source MQTT broker implementation supporting MQTT v3.1.1 and v5.0 protocols, with C/C++ client libraries and command-line utilities for publishing/subscribing messages. Provides installation guides, configuration options, and build instructions for various platforms.",
+      "why_it_matters": "Offers a lightweight, open-source solution for IoT messaging infrastructure with protocol compatibility and security features.",
+      "category": "open_source",
+      "source_url": "https://github.com/eclipse-mosquitto/mosquitto",
+      "source_name": "Hacker News",
+      "published_at": "2026-11-15T18:36:40Z",
+      "relevance_score": 4,
+      "significance_score": 3,
+      "evidence_sufficiency": "sufficient",
+      "limitations": "No details on real-world performance metrics, security vulnerabilities, or comparative benchmarks with other MQTT brokers. Assumes standard configuration for production environments.",
+      "key_claims": [
+        "Eclipse Mosquitto implements MQTT v3.1.1 and v5.0 protocols",
+        "Includes C/C++ client libraries and command-line utilities (mosquitto_pub, mosquitto_sub)",
+        "Supports authentication and configuration for secure deployments",
+        "Provides build instructions for multiple platforms including Windows, macOS, and Linux"
+      ],
+      "model_id": "qwen3:4b",
+      "disclaimer": "Recorded static sample from a local Qwen3 4B analysis. Not live inference."
+    },
+    {
+      "id": "demo-07",
+      "headline": "The MacBook Pro's OLED PWM problem",
+      "summary": "Apple's new MacBook Pro with PROLED XDR OLED display has been reported to cause eye strain, headaches, and discomfort in some users due to Pulse Width Modulation (PWM) flickering at 240Hz, significantly lower than the 14,880Hz PWM frequency of the Mini-LED display in previous models. The issue is not universal but affects a subset of users sensitive to PWM, which is a technique used to control screen brightness by rapidly switching light output.",
+      "why_it_matters": "The PROLED XDR display represents a significant technological advancement for Apple's flagship product, but the PWM issue highlights the trade-offs in display technology and the importance of accessibility considerations for sensitive users.",
+      "category": "technology",
+      "source_url": "https://macanorak.com/the-macbook-pros-oled-pwm-problem-when-a-better-display-becomes-worse-to-use",
+      "source_name": "Hacker News",
+      "published_at": "2026-11-15T13:15:22Z",
+      "relevance_score": 4,
+      "significance_score": 3,
+      "evidence_sufficiency": "partial",
+      "limitations": "The article does not provide specific user demographics, the exact mechanism of PWM-induced discomfort, or long-term impact assessments. The PWM frequency measurement may not fully capture the comfort experience for all users, as individual sensitivity varies.",
+      "key_claims": [
+        "The MacBook Pro's PROLED XDR OLED display uses PWM at 240Hz, causing discomfort in some users.",
+        "The PWM frequency is 62 times lower than the Mini-LED display's 14,880Hz PWM frequency.",
+        "The display combines PWM and DC dimming but still exhibits flickering at 240Hz.",
+        "The issue affects a subset of users sensitive to PWM, not all MacBook Pro owners."
+      ],
+      "model_id": "qwen3:4b",
+      "disclaimer": "Recorded static sample from a local Qwen3 4B analysis. Not live inference."
+    },
+    {
+      "id": "demo-08",
+      "headline": "Emacs Is My Browser",
+      "summary": "Author describes using EWW (Emacs Web Browser) as their primary web browser, emphasizing reduced distractions, privacy, and direct access to the internet's core protocols (gopher/gemini) over social media and JS-heavy platforms. Configured to prioritize text-focused browsing with custom keybindings and fallbacks to chromium for problematic sites.",
+      "why_it_matters": "Offers a minimalist web experience that aligns with deep work and privacy-focused computing, relevant for developers and productivity-focused users seeking to reduce digital distractions.",
+      "category": "productivity",
+      "source_url": "https://joshblais.com/blog/emacs-as-my-browser",
+      "source_name": "Hacker News",
+      "published_at": "2026-11-15T15:21:21Z",
+      "relevance_score": 4,
+      "significance_score": 3,
+      "evidence_sufficiency": "sufficient",
+      "limitations": "Does not cover full web functionality (e.g., social media, banking, government forms), assumes user has technical skills to configure Emacs, and may not be practical for all users due to lack of JS support",
+      "key_claims": [
+        "EWW can handle 85-90% of web use cases without JS dependencies",
+        "Browsing in EWW reduces distractions and promotes focused work",
+        "Author uses EWW for quick searches, documentation, and blogs, avoiding social media and JS-heavy sites",
+        "Custom configuration includes PDF/video handling and fallback to chromium for problematic sites"
+      ],
+      "model_id": "qwen3:4b",
+      "disclaimer": "Recorded static sample from a local Qwen3 4B analysis. Not live inference."
+    }
+  ]
+}

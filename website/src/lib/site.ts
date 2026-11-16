@@ -3,9 +3,9 @@ export const siteConfig = {
   tagline: "Your own AI news analyst.",
   supportLine: "Running locally. Reading continuously. Reporting what matters.",
   description:
-    "QwenNews is a local AI news reporting system: Hacker News and AI/tech RSS ingestion, SQLite story memory, Qwen3 4B analysis via Ollama, and hourly/daily briefings on macOS — with a separate public project website.",
+    "QwenNews is a local AI news reporting system: Hacker News and AI/tech RSS ingestion, SQLite story memory, pretrained Qwen3 4B analysis via Ollama (not trained or fine-tuned here), and hourly/daily briefings on macOS — with a separate public project website.",
   shortDescription:
-    "Local AI news reporting with Qwen3 4B, Ollama, SQLite, and macOS automation. Public project site — not the private live dashboard.",
+    "Local AI news reporting with pretrained Qwen3 4B via Ollama, SQLite, and macOS automation. Public project site — not the private live dashboard.",
   githubUrl: "https://github.com/sjyu0423/hackernewsreport",
 } as const;
 
@@ -90,7 +90,7 @@ export const homePipeline = [
   {
     step: "03",
     title: "Analyze",
-    body: "Qwen3 4B runs locally through Ollama and returns structured summaries.",
+    body: "Pretrained Qwen3 4B runs locally through Ollama and returns structured summaries.",
   },
   {
     step: "04",

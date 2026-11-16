@@ -7,6 +7,13 @@ export const metadata: Metadata = {
   title: "Demo",
   description:
     "Interactive QwenNews briefing demo powered by a fixed snapshot of real local Qwen3 4B analyses — not live inference.",
+  alternates: { canonical: "/demo/" },
+  openGraph: {
+    title: "Demo · QwenNews",
+    description:
+      "Interactive QwenNews briefing demo powered by a fixed snapshot of real local Qwen3 4B analyses — not live inference.",
+    url: "/demo/",
+  },
 };
 
 export default function DemoPage() {

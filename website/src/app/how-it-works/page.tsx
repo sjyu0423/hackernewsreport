@@ -10,7 +10,14 @@ import { stackRoles } from "@/lib/site";
 export const metadata: Metadata = {
   title: "How It Works",
   description:
-    "Interactive QwenNews architecture: collect, store, analyze locally with Qwen3 4B, rank deterministically, and publish via launchd — plus system boundaries.",
+    "Interactive QwenNews architecture: collect, store, analyze locally with pretrained Qwen3 4B, rank deterministically, and publish via optional launchd — plus system boundaries.",
+  alternates: { canonical: "/how-it-works/" },
+  openGraph: {
+    title: "How It Works · QwenNews",
+    description:
+      "Interactive QwenNews architecture: collect, store, analyze locally with pretrained Qwen3 4B, rank deterministically, and publish via optional launchd — plus system boundaries.",
+    url: "/how-it-works/",
+  },
 };
 
 export default function HowItWorksPage() {

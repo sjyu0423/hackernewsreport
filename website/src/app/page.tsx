@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { BriefingPreview } from "@/components/BriefingPreview";
 import {
@@ -5,11 +6,22 @@ import {
   featuredStories,
 } from "@/lib/demo";
 import { engineeringEvidence } from "@/lib/evidence";
+import { routeMeta } from "@/lib/seo";
 import {
   homePipeline,
   publicFixtureNote,
   siteConfig,
 } from "@/lib/site";
+
+export const metadata: Metadata = {
+  description: routeMeta.home.description,
+  alternates: { canonical: "/" },
+  openGraph: {
+    title: `${siteConfig.name} — ${siteConfig.tagline}`,
+    description: routeMeta.home.description,
+    url: "/",
+  },
+};
 
 export default function HomePage() {
   const previewStories = featuredStories(3);
@@ -26,10 +38,10 @@ export default function HomePage() {
             {siteConfig.supportLine}
           </p>
           <p className="lede">
-            Qwen3 4B runs locally through Ollama. Python collects and processes
-            news from five sources. SQLite tracks story history and prior
-            reports. Hourly and daily briefings highlight important
-            developments.
+            Pretrained Qwen3 4B runs locally through Ollama — this project does
+            not train or fine-tune the model. Python collects and processes news
+            from five sources. SQLite tracks story history and prior reports.
+            Hourly and daily briefings highlight important developments.
           </p>
           <p className="max-w-2xl text-sm leading-relaxed text-muted">
             This public website is a static demonstration — not the private live
@@ -70,7 +82,7 @@ export default function HomePage() {
           </p>
           <Link
             href="/how-it-works/"
-            className="mt-5 inline-flex text-sm no-underline"
+            className="mt-5 inline-flex min-h-11 items-center text-sm no-underline"
           >
             Full architecture explanation
           </Link>
@@ -103,7 +115,7 @@ export default function HomePage() {
           </p>
           <Link
             href="/engineering/"
-            className="mt-5 inline-flex text-sm no-underline"
+            className="mt-5 inline-flex min-h-11 items-center text-sm no-underline"
           >
             Benchmark details
           </Link>

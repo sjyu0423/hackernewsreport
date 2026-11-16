@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { primaryNav, siteConfig } from "@/lib/site";
 
 function normalizePath(pathname: string): string {
@@ -25,6 +25,7 @@ export function SiteHeader() {
   const pathname = usePathname() ?? "/";
   const [open, setOpen] = useState(false);
   const menuId = useId();
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     setOpen(false);
@@ -35,6 +36,7 @@ export function SiteHeader() {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         setOpen(false);
+        menuButtonRef.current?.focus();
       }
     };
     window.addEventListener("keydown", onKeyDown);
@@ -67,7 +69,7 @@ export function SiteHeader() {
               <Link
                 key={item.href}
                 href={item.href}
-                className={`rounded-lg px-3 py-2 text-sm no-underline transition-colors ${
+                className={`rounded-lg px-3 py-2.5 text-sm no-underline transition-colors ${
                   active
                     ? "bg-accent-soft text-paper"
                     : "text-muted hover:bg-ink-soft hover:text-paper"
@@ -81,8 +83,9 @@ export function SiteHeader() {
         </nav>
 
         <button
+          ref={menuButtonRef}
           type="button"
-          className="btn-secondary lg:hidden"
+          className="btn-secondary min-h-11 min-w-[5.5rem] lg:hidden"
           aria-expanded={open}
           aria-controls={menuId}
           onClick={() => setOpen((value) => !value)}
@@ -103,7 +106,7 @@ export function SiteHeader() {
               <Link
                 key={item.href}
                 href={item.href}
-                className={`rounded-lg px-3 py-3 no-underline ${
+                className={`rounded-lg px-3 py-3.5 no-underline ${
                   active
                     ? "bg-accent-soft text-paper"
                     : "text-muted hover:bg-ink-soft hover:text-paper"

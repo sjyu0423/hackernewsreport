@@ -21,6 +21,13 @@ export const metadata: Metadata = {
   title: "Under the Hood",
   description:
     "Technical deep dive for QwenNews: local inference contracts, SQLite memory model, ranking and deduplication, and reliability guarantees — grounded in application source.",
+  alternates: { canonical: "/under-the-hood/" },
+  openGraph: {
+    title: "Under the Hood · QwenNews",
+    description:
+      "Technical deep dive for QwenNews: local inference contracts, SQLite memory model, ranking and deduplication, and reliability guarantees — grounded in application source.",
+    url: "/under-the-hood/",
+  },
 };
 
 export default function UnderTheHoodPage() {

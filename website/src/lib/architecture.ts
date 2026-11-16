@@ -226,8 +226,8 @@ export const engineeringDecisions: EngineeringDecision[] = [
     summary:
       "Analysis runs with concurrency=1 and caches validated results by content hash, model, and config version.",
     detail:
-      "Bounded concurrency protects a small local GPU/CPU box. Cache hits avoid re-billing wall time when article content is unchanged — confirmed in the M1 live benchmark re-check.",
-    source: "docs/milestones/m1.md",
+      "Bounded concurrency protects a small local machine. Unchanged article content with the same model/config reuses the cached analysis (article_id + content_hash + model_id + config_version). Measured quiet vs active cycle times are different workloads — see Engineering — not a controlled A/B speedup claim.",
+    source: "docs/milestones/m1.md, docs/milestones/m3.md, website Engineering page",
   },
   {
     id: "watermarks",

@@ -2,19 +2,20 @@
 #
 # STATUS: prepared but NOT activated for automatic deploys.
 # - Only `workflow_dispatch` is enabled (manual run from the Actions tab).
-# - Push / schedule / Pages auto-deploy triggers are intentionally omitted
+# - Push / schedule / pull_request triggers are intentionally omitted
 #   until publishing is explicitly authorized.
 #
 # Before first real publish, confirm:
 # 1. GitHub Pages source = GitHub Actions
-# 2. Desired public URL (project pages vs custom domain)
-# 3. NEXT_PUBLIC_BASE_PATH (project pages usually /<repo>)
-# 4. NEXT_PUBLIC_SITE_URL for absolute Open Graph URLs
+# 2. Desired public URL (project pages): https://sjyu0423.github.io/hackernewsreport/
+# 3. NEXT_PUBLIC_BASE_PATH=/hackernewsreport
+# 4. NEXT_PUBLIC_SITE_URL=https://sjyu0423.github.io/hackernewsreport
 #
 # Observed remotes for this checkout (do not assume Pages is enabled):
 # - github: https://github.com/sjyu0423/hackernewsreport.git
 # - origin: https://origin.cursor.com/sj-yu-dev/hackernewsreport.git
-# Likely GitHub project-pages basePath if enabled: /hackernewsreport
+#
+# This workflow builds only website/ with Node — no Ollama, Python API, or SQLite.
 
 name: Website Pages (manual)
 
@@ -26,9 +27,9 @@ on:
         required: false
         default: "/hackernewsreport"
       site_url:
-        description: "NEXT_PUBLIC_SITE_URL for absolute metadata (optional)"
+        description: "NEXT_PUBLIC_SITE_URL for absolute metadata / sitemap / Open Graph"
         required: false
-        default: ""
+        default: "https://sjyu0423.github.io/hackernewsreport"
 
 permissions:
   contents: read
@@ -65,6 +66,9 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: Test
+        run: npm test
+
       - name: Build static export
         env:
           NEXT_PUBLIC_BASE_PATH: ${{ inputs.base_path }}
@@ -72,6 +76,9 @@ jobs:
         run: npm run build
 
       - name: Verify export
+        env:
+          NEXT_PUBLIC_BASE_PATH: ${{ inputs.base_path }}
+          NEXT_PUBLIC_SITE_URL: ${{ inputs.site_url }}
         run: npm run verify:export
 
       - name: Upload Pages artifact
@@ -80,7 +87,8 @@ jobs:
           path: website/out
 
   # Manual workflow only. Still requires a human to run the workflow and for
-  # GitHub Pages to be configured. Do not add push triggers without authorization.
+  # GitHub Pages to be configured. Do not add push or pull_request triggers
+  # without authorization.
   deploy:
     needs: build
     runs-on: ubuntu-latest

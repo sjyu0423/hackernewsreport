@@ -20,6 +20,13 @@ export const metadata: Metadata = {
   title: "Engineering",
   description:
     "Verified QwenNews engineering evidence: M1 benchmarks, caching and orchestration observations, backlog simulation, failure policy, and design tradeoffs.",
+  alternates: { canonical: "/engineering/" },
+  openGraph: {
+    title: "Engineering · QwenNews",
+    description:
+      "Verified QwenNews engineering evidence: M1 benchmarks, caching and orchestration observations, backlog simulation, failure policy, and design tradeoffs.",
+    url: "/engineering/",
+  },
 };
 
 export default function EngineeringPage() {

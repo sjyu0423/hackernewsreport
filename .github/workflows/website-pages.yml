@@ -1,0 +1,93 @@
+# QwenNews public website → GitHub Pages
+#
+# STATUS: prepared but NOT activated for automatic deploys.
+# - Only `workflow_dispatch` is enabled (manual run from the Actions tab).
+# - Push / schedule / Pages auto-deploy triggers are intentionally omitted
+#   until publishing is explicitly authorized.
+#
+# Before first real publish, confirm:
+# 1. GitHub Pages source = GitHub Actions
+# 2. Desired public URL (project pages vs custom domain)
+# 3. NEXT_PUBLIC_BASE_PATH (project pages usually /<repo>)
+# 4. NEXT_PUBLIC_SITE_URL for absolute Open Graph URLs
+#
+# Observed remotes for this checkout (do not assume Pages is enabled):
+# - github: https://github.com/sjyu0423/hackernewsreport.git
+# - origin: https://origin.cursor.com/sj-yu-dev/hackernewsreport.git
+# Likely GitHub project-pages basePath if enabled: /hackernewsreport
+
+name: Website Pages (manual)
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_path:
+        description: "NEXT_PUBLIC_BASE_PATH (e.g. /hackernewsreport). Leave empty for site root / custom domain."
+        required: false
+        default: "/hackernewsreport"
+      site_url:
+        description: "NEXT_PUBLIC_SITE_URL for absolute metadata (optional)"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: website-pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: website
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: website/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build static export
+        env:
+          NEXT_PUBLIC_BASE_PATH: ${{ inputs.base_path }}
+          NEXT_PUBLIC_SITE_URL: ${{ inputs.site_url }}
+        run: npm run build
+
+      - name: Verify export
+        run: npm run verify:export
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: website/out
+
+  # Manual workflow only. Still requires a human to run the workflow and for
+  # GitHub Pages to be configured. Do not add push triggers without authorization.
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

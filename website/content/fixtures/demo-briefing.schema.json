@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://qwennews.local/schemas/demo-briefing.schema.json",
+  "title": "QwenNewsPublicDemoBriefing",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "kind", "disclaimer", "generated_for", "items"],
+  "properties": {
+    "version": {
+      "type": "integer",
+      "const": 1
+    },
+    "kind": {
+      "type": "string",
+      "const": "static_demo_briefing"
+    },
+    "disclaimer": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Must state that content is a recorded static sample, not live inference."
+    },
+    "generated_for": {
+      "type": "string",
+      "const": "public-website"
+    },
+    "recorded_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "headline",
+          "summary",
+          "source_url",
+          "source_name",
+          "recorded_at",
+          "disclaimer"
+        ],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "headline": { "type": "string", "minLength": 1 },
+          "summary": { "type": "string", "minLength": 1 },
+          "source_url": {
+            "type": "string",
+            "pattern": "^https?://"
+          },
+          "source_name": { "type": "string", "minLength": 1 },
+          "recorded_at": { "type": "string", "format": "date-time" },
+          "significance": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "disclaimer": { "type": "string", "minLength": 1 }
+        }
+      }
+    }
+  }
+}

@@ -1,63 +1,41 @@
 import type { Metadata } from "next";
-import { ComingSoonPanel } from "@/components/ComingSoonPanel";
+import Link from "next/link";
+import { ArchitectureFlow } from "@/components/ArchitectureFlow";
+import { ArticleJourney } from "@/components/ArticleJourney";
+import { DecisionList } from "@/components/DecisionList";
 import { PageHero } from "@/components/PageHero";
+import { SystemBoundaries } from "@/components/SystemBoundaries";
 import { stackRoles } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "How It Works",
   description:
-    "Architecture overview for QwenNews: ingestion, SQLite memory, local Qwen3 4B analysis, reporting, and scheduling.",
+    "Interactive QwenNews architecture: collect, store, analyze locally with Qwen3 4B, rank deterministically, and publish via launchd — plus system boundaries.",
 };
-
-const pipeline = [
-  {
-    step: "01",
-    title: "Collect",
-    body: "Pull Hacker News and verified AI/tech RSS sources, normalize articles, and respect robots and SSRF safeguards.",
-  },
-  {
-    step: "02",
-    title: "Remember",
-    body: "Persist articles and story links in SQLite so later runs can detect updates instead of treating every sighting as new.",
-  },
-  {
-    step: "03",
-    title: "Analyze",
-    body: "Ask a local Qwen3 4B model (via Ollama) for structured summaries and scores; validate and cache the result.",
-  },
-  {
-    step: "04",
-    title: "Report",
-    body: "Rank and render hourly deltas or daily digests. Optional LaunchAgents automate the cycle on macOS.",
-  },
-] as const;
 
 export default function HowItWorksPage() {
   return (
-    <div className="shell space-y-12 pb-20">
+    <div className="shell space-y-16 pb-20">
       <PageHero
         eyebrow="How It Works"
-        title="From public feeds to a local briefing"
-        description="QwenNews is an orchestration system around a pretrained local model — not a custom-trained news LLM."
-      />
+        title="How QwenNews turns public news into local briefings"
+        description="Python orchestrates collection, memory, ranking, and publishing. A pretrained Qwen3 4B model — served locally by Ollama — only handles structured article analysis."
+      >
+        <p className="status-chip" role="status">
+          <span className="status-dot" aria-hidden="true" />
+          Static explanation · not live inference
+        </p>
+      </PageHero>
 
-      <ol className="grid gap-4 md:grid-cols-2">
-        {pipeline.map((item) => (
-          <li
-            key={item.step}
-            className="rounded-2xl border border-line/80 bg-ink-elevated/55 p-5"
-          >
-            <p className="font-mono text-xs uppercase tracking-[0.16em] text-accent">
-              {item.step}
-            </p>
-            <h2 className="mt-2 text-2xl">{item.title}</h2>
-            <p className="mt-2 text-sm leading-relaxed text-muted">{item.body}</p>
-          </li>
-        ))}
-      </ol>
+      <ArchitectureFlow />
 
       <section className="space-y-4">
-        <h2 className="text-3xl">System roles</h2>
+        <h2 className="text-3xl">Who does what</h2>
+        <p className="max-w-3xl text-muted">
+          Keep the model and the orchestration system distinct: Qwen writes
+          grounded summaries; Python decides what to fetch, store, rank, cache,
+          and publish.
+        </p>
         <div className="overflow-x-auto rounded-2xl border border-line">
           <table className="min-w-full text-left text-sm">
             <caption className="sr-only">
@@ -91,17 +69,27 @@ export default function HowItWorksPage() {
         </div>
       </section>
 
-      <ComingSoonPanel
-        milestone="W2"
-        title="Deeper architecture narrative"
-        summary="W0 records the verified pipeline shape. Later work will expand diagrams, failure policy, and the boundary between this public site and the private dashboard."
-        planned={[
-          "End-to-end architecture diagram",
-          "Failure and watermark policy explanation",
-          "Public site vs private dashboard boundary",
-          "Source and safety constraints (robots, SSRF)",
-        ]}
-      />
+      <ArticleJourney />
+      <DecisionList />
+      <SystemBoundaries />
+
+      <section className="panel grid gap-5 p-6 sm:p-8 lg:grid-cols-[1.2fr_0.8fr] lg:items-center">
+        <div>
+          <h2 className="text-2xl sm:text-3xl">See the analyses themselves</h2>
+          <p className="mt-3 max-w-prose text-muted">
+            The interactive demo renders the curated snapshot with filters and
+            expandable evidence — still without calling Ollama from this site.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-3">
+          <Link href="/demo/" className="btn-primary no-underline">
+            Open the demo
+          </Link>
+          <Link href="/engineering/" className="btn-secondary no-underline">
+            Engineering evidence
+          </Link>
+        </div>
+      </section>
     </div>
   );
 }

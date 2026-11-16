@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { ComingSoonPanel } from "@/components/ComingSoonPanel";
 import { PageHero } from "@/components/PageHero";
 
@@ -20,7 +21,7 @@ export default function UnderTheHoodPage() {
       <ComingSoonPanel
         milestone="W4–W5"
         title="Technical appendix reserved"
-        summary="W0 only establishes the route and navigation. Sensitive local paths, environment files, and production databases stay out of the public site."
+        summary="Architecture narrative now lives on How It Works. This page will later add schema/prompt appendices without publishing private paths or live databases."
         planned={[
           "Analysis JSON schema overview",
           "Story memory and watermark model",
@@ -28,6 +29,14 @@ export default function UnderTheHoodPage() {
           "What is intentionally not published",
         ]}
       />
+
+      <p className="text-sm text-muted">
+        Start with the{" "}
+        <Link href="/how-it-works/" className="no-underline">
+          interactive architecture
+        </Link>{" "}
+        explanation.
+      </p>
     </div>
   );
 }

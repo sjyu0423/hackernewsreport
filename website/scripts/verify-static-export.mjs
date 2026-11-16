@@ -26,11 +26,13 @@ const forbiddenNamePatterns = [
   /launchagent/i,
 ];
 
+// Catch private runtime wiring, not educational prose about local components.
 const forbiddenContentSnippets = [
   "127.0.0.1:8765",
+  "127.0.0.1:11434",
   "QWENNEWS_DB_PATH",
   "localhost:11434",
-  "/api/chat",
+  "localhost:8765",
 ];
 
 function walk(dir, files = []) {
@@ -105,6 +107,11 @@ if (!demoHtml.includes("Fixed snapshot") && !demoHtml.includes("fixed snapshot")
 const fixturePath = join(root, "content/fixtures/demo-briefing.snapshot.json");
 if (!existsSync(fixturePath)) {
   fail("missing curated demo snapshot fixture");
+}
+
+const howHtml = readFileSync(join(outDir, "how-it-works/index.html"), "utf8");
+if (!howHtml.includes("How QwenNews turns public news")) {
+  fail("how-it-works export missing architecture hero copy");
 }
 
 console.log(`verify-static-export: ok (${files.length} files, ${requiredRoutes.length} routes)`);
